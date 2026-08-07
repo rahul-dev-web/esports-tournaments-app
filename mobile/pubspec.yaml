@@ -1,0 +1,19 @@
+name: arenahub_mobile
+description: ArenaHub esports tournaments mobile app
+publish_to: 'none'
+version: 0.1.0+1
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  go_router: ^16.0.0
+  http: ^1.5.0
+  supabase_flutter: ^2.9.1
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true

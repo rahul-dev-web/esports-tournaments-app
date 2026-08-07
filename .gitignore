@@ -1,0 +1,10 @@
+.env
+**/.env
+**/.venv/
+**/node_modules/
+**/.next/
+mobile/.dart_tool/
+mobile/build/
+mobile/.packages
+__pycache__/
+*.pyc
