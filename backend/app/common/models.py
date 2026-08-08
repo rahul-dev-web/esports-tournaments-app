@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Role(str, Enum):
@@ -27,17 +27,18 @@ class RegistrationStatus(str, Enum):
 
 
 class UserProfile(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     email: str
     name: str
     username: str
     role: Role = Role.user
-    bio: str = ""
-    country: str = ""
-    state: str = ""
-    city: str = ""
+    bio: str | None = ""
+    country: str | None = ""
+    state: str | None = ""
+    city: str | None = ""
     photo_url: str | None = None
-    preferred_game: str = ""
+    preferred_game: str | None = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -60,6 +61,7 @@ class TeamCreate(BaseModel):
 
 
 class Team(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     game: str
@@ -74,14 +76,15 @@ class TournamentCreate(BaseModel):
     game: str
     mode: str
     starts_at: datetime
-    entry_requirement: str = "Watch required ads"
-    reward: str
+    entry_requirement: str | None = "Watch required ads"
+    reward: str | None = None
     total_slots: int = Field(gt=0)
     ads_required: int = Field(default=1, ge=0)
     policy: RegistrationPolicy = RegistrationPolicy.individual
 
 
 class Tournament(TournamentCreate):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     status: TournamentStatus = TournamentStatus.draft
     registered_teams: int = 0
@@ -94,6 +97,7 @@ class AdCompletion(BaseModel):
 
 
 class Registration(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     tournament_id: str
     team_id: str
