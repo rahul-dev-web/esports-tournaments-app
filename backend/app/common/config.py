@@ -1,20 +1,19 @@
-from functools import lru_cache
+"""Application configuration."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 
 class Settings(BaseSettings):
-    app_env: str = "development"
-    supabase_url: str = ""
-    supabase_service_role_key: str = ""
-    supabase_jwt_secret: str = ""
-    admin_emails: str = ""
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env.local", extra="ignore")
+    # Database
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./arenahub.db")
 
-    @property
-    def admins(self) -> set[str]:
-        return {email.strip().lower() for email in self.admin_emails.split(",") if email.strip()}
+    # Server
+    BACKEND_HOST: str = "localhost"
+    BACKEND_PORT: int = 8000
 
+    # Environment
+    ENVIRONMENT: str = "development"
 
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
+settings = Settings()

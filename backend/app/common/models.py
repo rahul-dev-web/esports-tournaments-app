@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Role(str, Enum):
@@ -27,17 +27,18 @@ class RegistrationStatus(str, Enum):
 
 
 class UserProfile(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     email: str
     name: str
     username: str
     role: Role = Role.user
-    bio: str = ""
-    country: str = ""
-    state: str = ""
-    city: str = ""
+    bio: str | None = ""
+    country: str | None = ""
+    state: str | None = ""
+    city: str | None = ""
     photo_url: str | None = None
-    preferred_game: str = ""
+    preferred_game: str | None = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -60,6 +61,7 @@ class TeamCreate(BaseModel):
 
 
 class Team(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
     game: str
@@ -74,14 +76,15 @@ class TournamentCreate(BaseModel):
     game: str
     mode: str
     starts_at: datetime
-    entry_requirement: str = "Watch required ads"
-    reward: str
+    entry_requirement: str | None = "Watch required ads"
+    reward: str | None = None
     total_slots: int = Field(gt=0)
     ads_required: int = Field(default=1, ge=0)
     policy: RegistrationPolicy = RegistrationPolicy.individual
 
 
 class Tournament(TournamentCreate):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     status: TournamentStatus = TournamentStatus.draft
     registered_teams: int = 0
@@ -94,6 +97,7 @@ class AdCompletion(BaseModel):
 
 
 class Registration(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     tournament_id: str
     team_id: str
@@ -103,3 +107,84 @@ class Registration(BaseModel):
     ads_completed: int = 0
     completed_by: list[str] = []
     slot: int | None = None
+# ==== INVITATION ENUM ====
+
+class InvitationStatus(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+    expired = "expired"
+    cancelled = "cancelled"
+
+
+# ==== INVITATION SCHEMAS ====
+
+class TeamInvitationCreate(BaseModel):
+    """
+    Request body for creating a team invitation.
+
+    Example:
+    {
+        "receiver_id": "user-123",
+        "message": "Join our BGMI squad!"
+    }
+    """
+
+    receiver_id: str
+    message: str | None = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "receiver_id": "user-123",
+                "message": "We need a good player for squad"
+            }
+        }
+
+
+class TeamInvitationResponse(BaseModel):
+    """Invitation details in response."""
+
+    id: str
+    team_id: str
+    sender_id: str
+    receiver_id: str
+    status: InvitationStatus
+    message: str | None = None
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InvitationActionRequest(BaseModel):
+    """
+    User response to invitation.
+
+    action should be:
+    - accept
+    - reject
+    """
+
+    action: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "action": "accept"
+            }
+        }
+
+
+class TeamInvitationList(BaseModel):
+    """List of invitations with team and sender information."""
+
+    id: str
+    team: dict
+    sender: dict
+    status: InvitationStatus
+    message: str | None = None
+    created_at: datetime
+    expires_at: datetime

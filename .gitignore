@@ -8,3 +8,48 @@ mobile/build/
 mobile/.packages
 __pycache__/
 *.pyc
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+.coverage
+.pytest_cache/
+
+# Flutter
+build/
+.dart_tool/
+*.apk
+*.ipa
+
+# Node
+node_modules/
+.next/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log

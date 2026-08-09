@@ -1,48 +1,105 @@
+"""Tournament registration and rewarded-ad completion endpoints."""
+
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
-from ..common.deps import current_user_id
-from ..common.models import AdCompletion, Registration, RegistrationPolicy, RegistrationStatus
-from ..store import store
+from sqlalchemy.orm import Session
+
+from app.common.deps import current_user_id
+from app.common.models import AdCompletion, Registration as RegistrationSchema, RegistrationPolicy, RegistrationStatus
+from app.core.database import get_db
+from app.core.models import Registration, RegistrationPolicyEnum, RegistrationStatusEnum, Team, Tournament, TournamentStatusEnum
 
 router = APIRouter()
 
-@router.post("/tournaments/{tournament_id}/teams/{team_id}", response_model=Registration)
-async def start_registration(tournament_id: str, team_id: str, user_id: str = Depends(current_user_id)):
-    tournament = store.tournaments.get(tournament_id)
-    team = store.teams.get(team_id)
+
+def to_schema(registration: Registration) -> RegistrationSchema:
+    completed_by = json.loads(registration.completed_by or "[]")
+    return RegistrationSchema(
+        id=registration.id,
+        tournament_id=registration.tournament_id,
+        team_id=registration.team_id,
+        captain_id=registration.user_id,
+        status=RegistrationStatus(registration.status.value),
+        ads_required=registration.ads_required,
+        ads_completed=registration.ads_completed,
+        completed_by=completed_by,
+        slot=registration.slot_number if registration.slot_assigned else None,
+    )
+
+
+@router.post("/tournaments/{tournament_id}/teams/{team_id}", response_model=RegistrationSchema)
+async def start_registration(
+    tournament_id: str,
+    team_id: str,
+    user_id: str = Depends(current_user_id),
+    db: Session = Depends(get_db),
+):
+    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    team = db.query(Team).filter(Team.id == team_id).first()
     if not tournament or not team:
         raise HTTPException(404, "Tournament or team not found")
     if team.captain_id != user_id:
         raise HTTPException(403, "Only the captain can register a team")
+    if tournament.status != TournamentStatusEnum.published:
+        raise HTTPException(409, "Tournament is not open for registration")
     if tournament.registered_teams >= tournament.total_slots:
         raise HTTPException(409, "Tournament is full")
-    registration = Registration(id=store.new_id(), tournament_id=tournament_id, team_id=team_id, captain_id=user_id, ads_required=tournament.ads_required, status=RegistrationStatus.ad_verification)
-    store.registrations[registration.id] = registration
-    return registration
+    existing = db.query(Registration).filter(Registration.tournament_id == tournament_id, Registration.team_id == team_id).first()
+    if existing:
+        return to_schema(existing)
+    registration = Registration(
+        tournament_id=tournament_id,
+        team_id=team_id,
+        user_id=user_id,
+        ads_required=tournament.ads_required,
+        status=RegistrationStatusEnum.ad_verification,
+        completed_by="[]",
+    )
+    db.add(registration)
+    db.commit()
+    db.refresh(registration)
+    return to_schema(registration)
 
-@router.post("/{registration_id}/ads/complete", response_model=Registration)
-async def complete_ad(payload: AdCompletion, registration_id: str, user_id: str = Depends(current_user_id)):
-    registration = store.registrations.get(registration_id)
+
+@router.post("/{registration_id}/ads/complete", response_model=RegistrationSchema)
+async def complete_ad(
+    payload: AdCompletion,
+    registration_id: str,
+    user_id: str = Depends(current_user_id),
+    db: Session = Depends(get_db),
+):
+    registration = db.query(Registration).filter(Registration.id == registration_id).first()
     if not registration or registration.id != payload.registration_id:
         raise HTTPException(404, "Registration not found")
     if payload.viewer_id != user_id:
         raise HTTPException(403, "Viewer does not match authenticated user")
-    # In production this token is checked against an ad provider/server receipt.
     if payload.verification_token == "invalid":
         raise HTTPException(422, "Ad verification failed")
-    tournament = store.tournaments[registration.tournament_id]
-    team = store.teams[registration.team_id]
-    if tournament.policy == RegistrationPolicy.individual and user_id not in team.member_ids:
-        raise HTTPException(403, "Only team members can complete this registration")
-    if user_id not in registration.completed_by:
-        registration.completed_by.append(user_id)
-        registration.ads_completed += 1
-    required = len(team.member_ids) if tournament.policy == RegistrationPolicy.individual else tournament.ads_required
-    if registration.ads_completed >= required:
-        registration.status = RegistrationStatus.registered
-        tournament.registered_teams += 1
-        registration.slot = tournament.registered_teams
-    return registration
 
-@router.get("/me", response_model=list[Registration])
-async def my_registrations(user_id: str = Depends(current_user_id)):
-    return [r for r in store.registrations.values() if r.captain_id == user_id or user_id in store.teams[r.team_id].member_ids]
+    tournament = db.query(Tournament).filter(Tournament.id == registration.tournament_id).first()
+    team = db.query(Team).filter(Team.id == registration.team_id).first()
+    completed_by = json.loads(registration.completed_by or "[]")
+    member_ids = {member.user_id for member in team.members}
+    if tournament.policy == RegistrationPolicyEnum.individual_ads and user_id not in member_ids:
+        raise HTTPException(403, "Only team members can complete this registration")
+    if user_id not in completed_by:
+        completed_by.append(user_id)
+        registration.completed_by = json.dumps(completed_by)
+        registration.ads_completed += 1
+
+    required = len(member_ids) if tournament.policy == RegistrationPolicyEnum.individual_ads else tournament.ads_required
+    if registration.ads_completed >= required and registration.status != RegistrationStatusEnum.registered:
+        registration.status = RegistrationStatusEnum.registered
+        tournament.registered_teams += 1
+        registration.slot_assigned = True
+        registration.slot_number = tournament.registered_teams
+    db.commit()
+    db.refresh(registration)
+    return to_schema(registration)
+
+
+@router.get("/me", response_model=list[RegistrationSchema])
+async def my_registrations(user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    registrations = db.query(Registration).filter(Registration.user_id == user_id).all()
+    return [to_schema(registration) for registration in registrations]
