@@ -3,12 +3,11 @@ Database connection setup
 - Replace in-memory store with PostgreSQL
 - SQLAlchemy ORM configuration
 """
-- SQLAlchemy ORM configuration
-"""
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
+from typing import Generator
 from app.common.config import settings
 import logging
 
@@ -32,7 +31,7 @@ SessionLocal = sessionmaker(
 # Base class for models
 Base = declarative_base()
 
-def get_db() -> Session:
+def get_db() -> Generator[Session, None, None]:
     """
     Dependency for FastAPI routes.
     Creates a database session per request and closes it after.

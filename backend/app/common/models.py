@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
+from typing import  Optional
 
 
 class Role(str, Enum):
@@ -90,10 +91,43 @@ class Tournament(TournamentCreate):
     registered_teams: int = 0
 
 
+
 class AdCompletion(BaseModel):
+    """
+    Request body for completing an ad.
+
+    Example:
+    {
+        "registration_id": "reg-123",
+        "viewer_id": "user-456",
+        "verification_token": "firebase-token-xyz"
+    }
+    """
     registration_id: str
     viewer_id: str
-    verification_token: str = Field(min_length=8)
+    verification_token: str
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "registration_id": "reg-123",
+                "viewer_id": "user-456",
+                "verification_token": "mock-token-success"
+            }
+        }
+    )
+
+
+class RegistrationStatusDetail(BaseModel):
+    """Detailed registration status"""
+
+    registration_id: str
+    status: str
+    ads_required: int
+    ads_completed: int
+    members_completed: list[str]
+    is_complete: bool
+    slot: Optional[int] = None
 
 
 class Registration(BaseModel):
@@ -133,13 +167,14 @@ class TeamInvitationCreate(BaseModel):
     receiver_id: str
     message: str | None = None
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "receiver_id": "user-123",
                 "message": "We need a good player for squad"
             }
         }
+    )
 
 
 class TeamInvitationResponse(BaseModel):
@@ -155,8 +190,7 @@ class TeamInvitationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InvitationActionRequest(BaseModel):

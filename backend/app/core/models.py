@@ -4,12 +4,16 @@ SQLAlchemy ORM Models
 - Persistent storage
 """
 
-from sqlalchemy import Column, String, Integer, DateTime, Boolean, Text, ForeignKey, Enum as SQLEnum
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+from __future__ import annotations
+
 from datetime import datetime
-import uuid
 from enum import Enum
+import uuid
+from typing import List
+
+from sqlalchemy import String, Integer, DateTime, Boolean, Text, ForeignKey, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -47,107 +51,102 @@ class InvitationStatusEnum(str, Enum):
 class User(Base):
     """User model - database table"""
     __tablename__ = "users"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    google_id = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True)
-    name = Column(String)
-    username = Column(String, unique=True, index=True)
-    bio = Column(Text, nullable=True)
-    country = Column(String, nullable=True)
-    state = Column(String, nullable=True)
-    city = Column(String, nullable=True)
-    photo_url = Column(String, nullable=True)
-    preferred_game = Column(String, nullable=True)
-    role = Column(SQLEnum(RoleEnum), default=RoleEnum.user)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    teams = relationship("Team", back_populates="captain")
-    registrations = relationship("Registration", back_populates="user")
 
-    sent_invitations = relationship("TeamInvitation",foreign_keys="TeamInvitation.sender_id",back_populates="sender")
-    received_invitations = relationship("TeamInvitation",foreign_keys="TeamInvitation.receiver_id",back_populates="receiver")
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    google_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String)
+    username: Mapped[str] = mapped_column(String, unique=True, index=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str | None] = mapped_column(String, nullable=True)
+    state: Mapped[str | None] = mapped_column(String, nullable=True)
+    city: Mapped[str | None] = mapped_column(String, nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    preferred_game: Mapped[str | None] = mapped_column(String, nullable=True)
+    role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.user)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    teams: Mapped[List["Team"]] = relationship(back_populates="captain")
+    registrations: Mapped[List["Registration"]] = relationship(back_populates="user")
+    sent_invitations: Mapped[List["TeamInvitation"]] = relationship(foreign_keys="TeamInvitation.sender_id", back_populates="sender")
+    received_invitations: Mapped[List["TeamInvitation"]] = relationship(foreign_keys="TeamInvitation.receiver_id", back_populates="receiver")
+
 class Team(Base):
     """Team model - database table"""
     __tablename__ = "teams"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String, index=True)
-    game = Column(String)
-    logo_url = Column(String, nullable=True)
-    captain_id = Column(String, ForeignKey("users.id"))
-    is_private = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    captain = relationship("User", back_populates="teams")
-    members = relationship("TeamMember", back_populates="team")
-    registrations = relationship("Registration", back_populates="team")
-    invitations = relationship("TeamInvitation",back_populates="team")
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String, index=True)
+    game: Mapped[str] = mapped_column(String)
+    logo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    captain_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+    is_private: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    captain: Mapped["User"] = relationship(back_populates="teams")
+    members: Mapped[List["TeamMember"]] = relationship(back_populates="team")
+    registrations: Mapped[List["Registration"]] = relationship(back_populates="team")
+    invitations: Mapped[List["TeamInvitation"]] = relationship(back_populates="team")
 
     @property
-    def member_ids(self):
+    def member_ids(self) -> List[str]:
         return [member.user_id for member in self.members]
 
 class TeamMember(Base):
     """Team member mapping"""
     __tablename__ = "team_members"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    team_id = Column(String, ForeignKey("teams.id"))
-    user_id = Column(String, ForeignKey("users.id"))
-    joined_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    team = relationship("Team", back_populates="members")
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id: Mapped[str] = mapped_column(String, ForeignKey("teams.id"))
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    team: Mapped["Team"] = relationship(back_populates="members")
 
 class Tournament(Base):
     """Tournament model - database table"""
     __tablename__ = "tournaments"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String, index=True)
-    game = Column(String)
-    mode = Column(String)  # solo, duo, squad
-    starts_at = Column(DateTime)
-    entry_requirement = Column(String, nullable=True)
-    reward = Column(String, nullable=True)
-    total_slots = Column(Integer)
-    registered_teams = Column(Integer, default=0)
-    ads_required = Column(Integer, default=1)
-    policy = Column(SQLEnum(RegistrationPolicyEnum), default=RegistrationPolicyEnum.individual_ads)
-    status = Column(SQLEnum(TournamentStatusEnum), default=TournamentStatusEnum.draft)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    registrations = relationship("Registration", back_populates="tournament")
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String, index=True)
+    game: Mapped[str] = mapped_column(String)
+    mode: Mapped[str] = mapped_column(String)
+    starts_at: Mapped[datetime] = mapped_column(DateTime)
+    entry_requirement: Mapped[str | None] = mapped_column(String, nullable=True)
+    reward: Mapped[str | None] = mapped_column(String, nullable=True)
+    total_slots: Mapped[int] = mapped_column(Integer)
+    registered_teams: Mapped[int] = mapped_column(Integer, default=0)
+    ads_required: Mapped[int] = mapped_column(Integer, default=1)
+    policy: Mapped[RegistrationPolicyEnum] = mapped_column(SQLEnum(RegistrationPolicyEnum), default=RegistrationPolicyEnum.individual_ads)
+    status: Mapped[TournamentStatusEnum] = mapped_column(SQLEnum(TournamentStatusEnum), default=TournamentStatusEnum.draft)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    registrations: Mapped[List["Registration"]] = relationship(back_populates="tournament")
 
 class Registration(Base):
     """Tournament registration"""
     __tablename__ = "registrations"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    tournament_id = Column(String, ForeignKey("tournaments.id"))
-    team_id = Column(String, ForeignKey("teams.id"))
-    user_id = Column(String, ForeignKey("users.id"))
-    status = Column(SQLEnum(RegistrationStatusEnum), default=RegistrationStatusEnum.pending)
-    ads_required = Column(Integer)
-    ads_completed = Column(Integer, default=0)
-    completed_by = Column(String, nullable=True)  # JSON list of user IDs
-    slot_assigned = Column(Boolean, default=False)
-    slot_number = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    tournament = relationship("Tournament", back_populates="registrations")
-    team = relationship("Team", back_populates="registrations")
-    user = relationship("User", back_populates="registrations")
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tournament_id: Mapped[str] = mapped_column(String, ForeignKey("tournaments.id"))
+    team_id: Mapped[str] = mapped_column(String, ForeignKey("teams.id"))
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+    status: Mapped[RegistrationStatusEnum] = mapped_column(SQLEnum(RegistrationStatusEnum), default=RegistrationStatusEnum.pending)
+    ads_required: Mapped[int] = mapped_column(Integer)
+    ads_completed: Mapped[int] = mapped_column(Integer, default=0)
+    completed_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    slot_assigned: Mapped[bool] = mapped_column(Boolean, default=False)
+    slot_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tournament: Mapped["Tournament"] = relationship(back_populates="registrations")
+    team: Mapped["Team"] = relationship(back_populates="registrations")
+    user: Mapped["User"] = relationship(back_populates="registrations")
 
 class TeamInvitation(Base):
     """
@@ -158,68 +157,16 @@ class TeamInvitation(Base):
     """
     __tablename__ = "team_invitations"
 
-    id = Column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    team_id: Mapped[str] = mapped_column(String, ForeignKey("teams.id"), index=True)
+    sender_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+    receiver_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+    status: Mapped[InvitationStatusEnum] = mapped_column(SQLEnum(InvitationStatusEnum), default=InvitationStatusEnum.pending, index=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    team_id = Column(
-        String,
-        ForeignKey("teams.id"),
-        index=True
-    )
-
-    sender_id = Column(
-        String,
-        ForeignKey("users.id")
-    )
-
-    receiver_id = Column(
-        String,
-        ForeignKey("users.id")
-    )
-
-    status = Column(
-        SQLEnum(InvitationStatusEnum),
-        default=InvitationStatusEnum.pending,
-        index=True
-    )
-
-    message = Column(
-        Text,
-        nullable=True
-    )
-
-    expires_at = Column(
-        DateTime
-    )
-
-    created_at = Column(
-        DateTime,
-        default=datetime.utcnow
-    )
-
-    updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-    # Relationships
-    team = relationship(
-        "Team",
-        back_populates="invitations"
-    )
-
-    sender = relationship(
-        "User",
-        foreign_keys=[sender_id],
-        back_populates="sent_invitations"
-    )
-
-    receiver = relationship(
-        "User",
-        foreign_keys=[receiver_id],
-        back_populates="received_invitations"
-    )
+    team: Mapped["Team"] = relationship(back_populates="invitations")
+    sender: Mapped["User"] = relationship(foreign_keys=[sender_id], back_populates="sent_invitations")
+    receiver: Mapped["User"] = relationship(foreign_keys=[receiver_id], back_populates="received_invitations")
