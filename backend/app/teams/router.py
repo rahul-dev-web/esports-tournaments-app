@@ -188,6 +188,7 @@ async def remove_member(
 
     logger.info(f"User {member_user_id} removed from team {team_id}")
     return {"success": True, "message": "Member removed"}
+
 # ============================================================
 # TEAM INVITATION ENDPOINTS
 # ============================================================

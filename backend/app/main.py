@@ -17,7 +17,6 @@ from app.admin.router import router as admin_router
 import logging
 
 logger = logging.getLogger(__name__)
-
 app = FastAPI(
     title="eSports Tournament API",
     description="Tournament management platform",
@@ -89,4 +88,3 @@ async def health():
         "status": "ok",
         "service": "arenahub-api"
     }
-

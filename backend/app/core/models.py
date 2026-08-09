@@ -41,6 +41,7 @@ class InvitationStatusEnum(str, Enum):
     expired = "expired"
     cancelled = "cancelled"
 
+
 # Database Models
 
 class User(Base):
@@ -69,7 +70,6 @@ class User(Base):
 
     sent_invitations = relationship("TeamInvitation",foreign_keys="TeamInvitation.sender_id",back_populates="sender")
     received_invitations = relationship("TeamInvitation",foreign_keys="TeamInvitation.receiver_id",back_populates="receiver")
-
 class Team(Base):
     """Team model - database table"""
     __tablename__ = "teams"
@@ -152,7 +152,6 @@ class Registration(Base):
 class TeamInvitation(Base):
     """
     Team member invitation system.
-
     - Captain sends invitations
     - Users accept or reject invitations
     - Invitation history is stored
