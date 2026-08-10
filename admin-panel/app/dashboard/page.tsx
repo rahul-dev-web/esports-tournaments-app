@@ -10,7 +10,6 @@ import {
   tournamentsAPI,
   usersAPI,
   teamsAPI,
-  registrationsAPI,
 } from '../lib/api';
 
 export default function DashboardPage() {
