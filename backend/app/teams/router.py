@@ -66,6 +66,43 @@ async def list_teams(
     teams = query.offset(skip).limit(limit).all()
     return [TeamSchema.from_orm(t) for t in teams]
 
+# ============================================================
+# GET USER'S TEAMS (MY TEAMS)
+# ============================================================
+
+@router.get(
+    "/user/my-teams",
+    response_model=list[TeamSchema],
+    tags=["teams"],
+)
+async def get_my_teams(
+    user_id: str = Depends(current_user_id),
+    db: Session = Depends(get_db),
+):
+    """
+    Get all teams where the current user is a member.
+
+    Includes:
+    - Teams where user is captain
+    - Teams where user joined normally
+    - Teams where user joined through invitation
+    """
+
+    teams = (
+        db.query(Team)
+        .join(TeamMember)
+        .filter(TeamMember.user_id == user_id)
+        .all()
+    )
+
+    result = [TeamSchema.from_orm(team) for team in teams]
+
+    logger.info(
+        f"Retrieved {len(result)} teams for user {user_id}"
+    )
+
+    return result
+
 @router.get("/{team_id}", response_model=TeamSchema, tags=["teams"])
 async def get_team(
     team_id: str,
@@ -78,6 +115,78 @@ async def get_team(
         raise HTTPException(status_code=404, detail="Team not found")
 
     return TeamSchema.from_orm(team)
+
+# ============================================================
+# GET TEAM MEMBERS
+# ============================================================
+
+@router.get(
+    "/{team_id}/members",
+    tags=["teams"],
+)
+async def get_team_members(
+    team_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Get all members of a team.
+
+    Returns:
+    - User ID
+    - Name
+    - Username
+    - Photo URL
+    - Is Captain
+    - Joined date
+    """
+
+    # Step 1: Check team exists
+    team = (
+        db.query(Team)
+        .filter(Team.id == team_id)
+        .first()
+    )
+
+    if not team:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found",
+        )
+
+    # Step 2: Get team members with their users
+    members = (
+        db.query(User, TeamMember)
+        .join(
+            TeamMember,
+            TeamMember.user_id == User.id,
+        )
+        .filter(
+            TeamMember.team_id == team_id
+        )
+        .all()
+    )
+
+    # Step 3: Build response
+    members_data = []
+
+    for user, team_member in members:
+        members_data.append(
+            {
+                "id": user.id,
+                "name": user.name,
+                "username": user.username,
+                "photo_url": user.photo_url,
+                "is_captain": user.id == team.captain_id,
+                "joined_at": team_member.joined_at,
+            }
+        )
+
+    logger.info(
+        f"Retrieved {len(members_data)} members "
+        f"for team {team_id}"
+    )
+
+    return members_data
 
 @router.patch("/{team_id}", response_model=TeamSchema, tags=["teams"])
 async def update_team(
