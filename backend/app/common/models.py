@@ -222,3 +222,70 @@ class TeamInvitationList(BaseModel):
     message: str | None = None
     created_at: datetime
     expires_at: datetime
+
+# ============================================================
+# SETTINGS SCHEMAS
+# ============================================================
+
+class SettingCreate(BaseModel):
+    """
+    Create or update application setting.
+    """
+
+    key: str = Field(
+        ...,
+        min_length=1,
+        max_length=100
+    )
+
+    value: str = Field(
+        ...,
+        min_length=1
+    )
+
+    description: str | None = None
+
+    type: str = Field(
+        default="string"
+    )
+    # Allowed values:
+    # string, number, boolean, json
+
+
+class SettingResponse(BaseModel):
+    """
+    Setting response.
+    """
+
+    key: str
+    value: str
+    description: str | None = None
+    type: str
+    updated_at: datetime
+    updated_by: str | None = None
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+
+class SettingsDict(BaseModel):
+    """
+    All application settings as a typed dictionary.
+    """
+
+    ads_per_registration: int = 2
+
+    registration_policy: str = "individual_ads"
+    # Allowed:
+    # individual_ads
+    # captain_ads
+
+    max_team_size: int = 5
+
+    tournament_registration_timeout: int = 24
+    # Timeout in hours
+
+    reward_amount: int = 1000
+
+    reward_currency: str = "INR"

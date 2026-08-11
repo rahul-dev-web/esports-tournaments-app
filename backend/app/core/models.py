@@ -170,3 +170,57 @@ class TeamInvitation(Base):
     team: Mapped["Team"] = relationship(back_populates="invitations")
     sender: Mapped["User"] = relationship(foreign_keys=[sender_id], back_populates="sent_invitations")
     receiver: Mapped["User"] = relationship(foreign_keys=[receiver_id], back_populates="received_invitations")
+class Settings(Base):
+    """
+    Global application settings.
+
+    Configuration-driven business logic.
+    Allows admins to change application behavior
+    without changing code.
+    """
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(
+        String(100),
+        primary_key=True,
+    )
+    # Examples:
+    # "ads_per_registration"
+    # "registration_policy"
+    # "max_team_size"
+
+    value: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+    # JSON string can be stored for complex values.
+
+    description: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+    # Human-readable description.
+
+    type: Mapped[str] = mapped_column(
+        String(50),
+        default="string",
+        nullable=False,
+    )
+    # Supported types:
+    # string, number, boolean, json
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    updated_by: Mapped[str | None] = mapped_column(
+        String(36),
+        nullable=True,
+    )
+    # User ID of the admin who last updated this setting.
+
+    def __repr__(self):
+        return f"<Settings {self.key}={self.value}>"

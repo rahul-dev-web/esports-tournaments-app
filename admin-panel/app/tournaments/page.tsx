@@ -10,7 +10,7 @@ import { Edit2, Trash2, Eye } from 'lucide-react';
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [ setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
