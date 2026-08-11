@@ -1,60 +1,59 @@
-"""
-Database connection setup
-- Replace in-memory store with PostgreSQL
-- SQLAlchemy ORM configuration
-"""
+"""Database connection setup for SQLAlchemy-backed local development."""
+
+from __future__ import annotations
+
+import logging
+from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
-from typing import Generator
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+
 from app.common.config import settings
-import logging
+
 
 logger = logging.getLogger(__name__)
 
-# Database engine
+
 engine = create_engine(
     settings.DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,  # Test connection before using
+    pool_pre_ping=True,
     connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {},
 )
 
-# Session factory
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
 )
 
-# Base class for models
 Base = declarative_base()
 
+
 def get_db() -> Generator[Session, None, None]:
-    """
-    Dependency for FastAPI routes.
-    Creates a database session per request and closes it after.
-    """
     db = SessionLocal()
     try:
         yield db
-    except Exception as e:
-        logger.error(f"Database error: {e}")
-        raise
     finally:
         db.close()
 
 
-def init_db():
+def init_db() -> bool:
     """
-    Create all database tables.
-    All imported SQLAlchemy models will be created if they do not already exist.
+    Create local development tables when using SQLite.
+
+    Production uses the Supabase SQL schema as the source of truth, so this is
+    intentionally a no-op for non-SQLite databases.
     """
+
     try:
+        if not settings.DATABASE_URL.startswith("sqlite"):
+            logger.info("Skipping SQLAlchemy table bootstrap for non-SQLite DATABASE_URL")
+            return True
+
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables created/verified")
+        logger.info("Database tables created/verified")
         return True
-    except Exception as e:
-        logger.error(f"❌ Database init failed: {e}")
+    except Exception as exc:
+        logger.exception("Database init failed: %s", exc)
         return False

@@ -11,7 +11,7 @@ from datetime import datetime
 from app.common.deps import require_admin, current_user_id
 from app.core.database import get_db
 from app.core.models import (
-    User, Team, Tournament, Registration, Settings,
+    User, Team, TeamMember, Tournament, Registration, Settings,
     TournamentStatusEnum, RegistrationStatusEnum, RoleEnum
 )
 from app.common.models import SettingCreate, SettingResponse
@@ -20,7 +20,7 @@ import csv
 import io
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 # ============================================================================
 # SETTINGS MANAGEMENT (Priority 1 - CRITICAL!)
@@ -104,7 +104,7 @@ async def update_setting(
             key=key,
             value=payload.value,
             description=payload.description,
-            type=payload.type,
+            value_type=payload.value_type,
             updated_by=user_id,
             updated_at=datetime.utcnow()
         )
@@ -113,7 +113,7 @@ async def update_setting(
         # Update existing
         setting.value = payload.value
         setting.description = payload.description or setting.description
-        setting.type = payload.type
+        setting.value_type = payload.value_type
         setting.updated_by = user_id
         setting.updated_at = datetime.utcnow()
     

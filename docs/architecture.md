@@ -1,22 +1,18 @@
-# ArenaHub architecture
+# Architecture
 
-The repository is a feature-first monorepo:
+Source of truth:
 
-- `backend/`: FastAPI API boundary. The current starter keeps a memory store for local development; production wiring should replace it with Supabase repositories and verify Supabase JWTs.
-- `database/`: Supabase PostgreSQL schema, RLS starting policies, and audit tables.
-- `mobile/`: Flutter + Riverpod starter. Add generated platform folders with `flutter create mobile` when Flutter SDK is available.
-- `admin-panel/`: lightweight Next.js starter for admin dashboard integration.
+- Production database: Supabase PostgreSQL.
+- Production auth: Supabase Auth.
+- File storage: Supabase Storage.
 
-Registration is a server-owned state machine. A captain starts a registration, the API records verified ad events, and the configured policy determines whether the required count comes from team members or the captain. Slot assignment occurs only on the transition to `registered`.
+Backend:
 
-## Run API
+- FastAPI exposes `/api/auth`, `/api/users`, `/api/teams`, `/api/tournaments`, `/api/registrations`, `/api/ads`, `/api/notifications`, `/api/admin`.
+- JWT verification happens in `backend/app/common/deps.py`.
+- Registration and SSV handling are server-side and transaction-aware.
 
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+Client:
 
-The local auth boundary accepts `X-User-Id`. Replace it with Supabase access-token verification before shipping.
+- Flutter uses Supabase session tokens.
+- Admin panel uses a configurable backend base URL.

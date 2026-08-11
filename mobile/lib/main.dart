@@ -1,8 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config.dart';
 import 'core/router.dart';
 
-void main() => runApp(const ProviderScope(child: ArenaHubApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      publishableKey: supabaseAnonKey,
+    );
+  }
+
+  runApp(const ProviderScope(child: ArenaHubApp()));
+}
 
 class ArenaHubApp extends StatelessWidget {
   const ArenaHubApp({super.key});

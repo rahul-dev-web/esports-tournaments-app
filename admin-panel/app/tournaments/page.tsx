@@ -10,7 +10,7 @@ import { Edit2, Trash2, Eye } from 'lucide-react';
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const [ setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -60,6 +60,12 @@ export default function TournamentsPage() {
           Create Tournament
         </Link>
       </div>
+
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

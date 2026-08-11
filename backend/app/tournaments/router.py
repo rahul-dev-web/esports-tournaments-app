@@ -5,7 +5,7 @@ Tournament management endpoints
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.models import Tournament, TournamentStatusEnum
+from app.core.models import Tournament, TournamentStatusEnum, TournamentTypeEnum, RegistrationPolicyEnum
 from app.common.models import Tournament as TournamentSchema, TournamentCreate
 from app.common.deps import current_user_id, require_admin
 import logging
@@ -25,10 +25,14 @@ async def create_tournament(
         name=payload.name,
         game=payload.game,
         mode=payload.mode,
+        tournament_type=payload.tournament_type,
         starts_at=payload.starts_at,
         entry_requirement=payload.entry_requirement,
         reward=payload.reward,
+        status=payload.status,
         total_slots=payload.total_slots,
+        registered_teams=payload.registered_teams,
+        team_size=payload.team_size,
         ads_required=payload.ads_required,
         policy=payload.policy,
     )
@@ -55,7 +59,7 @@ async def list_tournaments(
         query = query.filter(Tournament.game == game)
 
     if status:
-        query = query.filter(Tournament.status == status)
+        query = query.filter(Tournament.status == TournamentStatusEnum(status))
 
     tournaments = query.offset(skip).limit(limit).all()
     return [TournamentSchema.from_orm(t) for t in tournaments]
@@ -113,7 +117,7 @@ async def change_tournament_status(
     if new_status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
 
-    tournament.status = new_status
+    tournament.status = TournamentStatusEnum(new_status)
     db.commit()
     db.refresh(tournament)
 

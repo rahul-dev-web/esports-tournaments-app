@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/team_remote_datasource.dart';
  
 // Data source provider
@@ -6,8 +7,7 @@ final teamDataSourceProvider = Provider((ref) {
   return TeamRemoteDataSource();
 });
  
-// Auth token provider (from your auth logic)
-final authTokenProvider = StateProvider<String?>((ref) => null);
+String? _sessionToken() => Supabase.instance.client.auth.currentSession?.accessToken;
  
 // Current user ID provider
 final currentUserIdProvider = StateProvider<String?>((ref) => null);
@@ -45,7 +45,7 @@ final teamMembersProvider = FutureProvider.family<List<Map<String, dynamic>>, St
  
 final myTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -58,7 +58,7 @@ final myTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
  
 final createTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -83,7 +83,7 @@ final createTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<Strin
  
 final updateTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -110,7 +110,7 @@ final updateTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<Strin
  
 final deleteTeamProvider = FutureProvider.family<void, String>((ref, teamId) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -128,7 +128,7 @@ final deleteTeamProvider = FutureProvider.family<void, String>((ref, teamId) asy
  
 final receivedInvitationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -137,7 +137,7 @@ final receivedInvitationsProvider = FutureProvider<List<Map<String, dynamic>>>((
  
 final acceptInvitationProvider = FutureProvider.family<void, Map<String, String>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -150,7 +150,7 @@ final acceptInvitationProvider = FutureProvider.family<void, Map<String, String>
  
 final rejectInvitationProvider = FutureProvider.family<void, Map<String, String>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -162,7 +162,7 @@ final rejectInvitationProvider = FutureProvider.family<void, Map<String, String>
  
 final sendInvitationProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   
@@ -180,7 +180,7 @@ final sendInvitationProvider = FutureProvider.family<Map<String, dynamic>, Map<S
  
 final searchUsersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, query) async {
   final dataSource = ref.watch(teamDataSourceProvider);
-  final token = ref.watch(authTokenProvider);
+  final token = _sessionToken();
   
   if (token == null) throw Exception('Not authenticated');
   if (query.length < 2) return [];

@@ -1,9 +1,9 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/config.dart';
 
 class ProfileRemoteDataSource {
-  final String baseUrl = "http://localhost:8000/api";
+  final String baseUrl = apiBaseUrl;
   
   /// Get current user's profile
   Future<Map<String, dynamic>> getUserProfile(String token) async {

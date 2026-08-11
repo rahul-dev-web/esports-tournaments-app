@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.common.deps import current_user_id
 from app.users.schemas import (
+    UserPublicProfileResponse,
     UserProfileResponse,
     UpdateUserProfileRequest,
     UpdatePhotoRequest,
@@ -87,17 +88,7 @@ async def get_user_by_username(
             detail="User not found",
         )
 
-    return {
-        "id": user.id,
-        "username": user.username,
-        "name": user.name,
-        "bio": user.bio,
-        "country": user.country,
-        "city": user.city,
-        "photo_url": user.photo_url,
-        "preferred_game": user.preferred_game,
-        "created_at": user.created_at,
-    }
+    return UserPublicProfileResponse.model_validate(user)
 
 
 # ============================================================
@@ -176,7 +167,7 @@ async def update_profile_photo(
             detail="Failed to update photo",
         )
 
-    profile = UserProfileResponse.from_orm(user)
+    profile = UserProfileResponse.model_validate(user)
 
     return UpdateSuccessResponse(
         message="Photo updated successfully",

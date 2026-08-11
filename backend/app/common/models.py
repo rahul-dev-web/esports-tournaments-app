@@ -1,7 +1,12 @@
+"""Shared request/response schemas for the backend API."""
+
+from __future__ import annotations
+
 from datetime import datetime
 from enum import Enum
+from typing import Any, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import  Optional
 
 
 class Role(str, Enum):
@@ -20,6 +25,13 @@ class TournamentStatus(str, Enum):
     closed = "closed"
 
 
+class TournamentType(str, Enum):
+    solo = "solo"
+    duo = "duo"
+    squad = "squad"
+    custom = "custom"
+
+
 class RegistrationStatus(str, Enum):
     pending = "pending"
     ad_verification = "ad_verification"
@@ -27,8 +39,17 @@ class RegistrationStatus(str, Enum):
     rejected = "rejected"
 
 
+class InvitationStatus(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+    expired = "expired"
+    cancelled = "cancelled"
+
+
 class UserProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     id: str
     email: str
     name: str
@@ -39,8 +60,11 @@ class UserProfile(BaseModel):
     state: str | None = ""
     city: str | None = ""
     photo_url: str | None = None
+    social_links: dict[str, Any] = Field(default_factory=dict)
     preferred_game: str | None = ""
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    in_game_uid: str | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class UserProfileUpdate(BaseModel):
@@ -52,6 +76,7 @@ class UserProfileUpdate(BaseModel):
     city: str | None = None
     photo_url: str | None = None
     preferred_game: str | None = None
+    social_links: dict[str, Any] | None = None
 
 
 class TeamCreate(BaseModel):
@@ -63,64 +88,63 @@ class TeamCreate(BaseModel):
 
 class Team(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     game: str
     captain_id: str
-    member_ids: list[str] = []
+    member_ids: list[str] = Field(default_factory=list)
     is_private: bool = False
     logo_url: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class TournamentCreate(BaseModel):
     name: str = Field(min_length=3, max_length=120)
     game: str
     mode: str
+    tournament_type: TournamentType = TournamentType.custom
     starts_at: datetime
-    entry_requirement: str | None = "Watch required ads"
-    reward: str | None = None
+    entry_requirement: str | None = ""
+    reward: str | None = ""
+    status: TournamentStatus = TournamentStatus.draft
     total_slots: int = Field(gt=0)
-    ads_required: int = Field(default=1, ge=0)
+    registered_teams: int = 0
+    team_size: int = Field(default=1, ge=1)
+    ads_required: int = Field(default=0, ge=0)
     policy: RegistrationPolicy = RegistrationPolicy.individual
 
 
 class Tournament(TournamentCreate):
     model_config = ConfigDict(from_attributes=True)
-    id: str
-    status: TournamentStatus = TournamentStatus.draft
-    registered_teams: int = 0
 
+    id: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class AdCompletion(BaseModel):
-    """
-    Request body for completing an ad.
-
-    Example:
-    {
-        "registration_id": "reg-123",
-        "viewer_id": "user-456",
-        "verification_token": "firebase-token-xyz"
-    }
-    """
     registration_id: str
     viewer_id: str
     verification_token: str
+    provider: str = "admob"
+    provider_event_id: str | None = None
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "registration_id": "reg-123",
                 "viewer_id": "user-456",
-                "verification_token": "mock-token-success"
+                "verification_token": "mock-token-success",
+                "provider": "admob",
+                "provider_event_id": "evt-123",
             }
         }
     )
 
 
 class RegistrationStatusDetail(BaseModel):
-    """Detailed registration status"""
-
     registration_id: str
     status: str
     ads_required: int
@@ -132,6 +156,7 @@ class RegistrationStatusDetail(BaseModel):
 
 class Registration(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     id: str
     tournament_id: str
     team_id: str
@@ -139,31 +164,13 @@ class Registration(BaseModel):
     status: RegistrationStatus = RegistrationStatus.pending
     ads_required: int
     ads_completed: int = 0
-    completed_by: list[str] = []
+    completed_by: list[str] = Field(default_factory=list)
     slot: int | None = None
-# ==== INVITATION ENUM ====
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
-class InvitationStatus(str, Enum):
-    pending = "pending"
-    accepted = "accepted"
-    rejected = "rejected"
-    expired = "expired"
-    cancelled = "cancelled"
-
-
-# ==== INVITATION SCHEMAS ====
 
 class TeamInvitationCreate(BaseModel):
-    """
-    Request body for creating a team invitation.
-
-    Example:
-    {
-        "receiver_id": "user-123",
-        "message": "Join our BGMI squad!"
-    }
-    """
-
     receiver_id: str
     message: str | None = None
 
@@ -171,14 +178,14 @@ class TeamInvitationCreate(BaseModel):
         json_schema_extra={
             "example": {
                 "receiver_id": "user-123",
-                "message": "We need a good player for squad"
+                "message": "We need a good player for squad",
             }
         }
     )
 
 
 class TeamInvitationResponse(BaseModel):
-    """Invitation details in response."""
+    model_config = ConfigDict(from_attributes=True)
 
     id: str
     team_id: str
@@ -190,102 +197,51 @@ class TeamInvitationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class InvitationActionRequest(BaseModel):
-    """
-    User response to invitation.
-
-    action should be:
-    - accept
-    - reject
-    """
-
     action: str
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
-                "action": "accept"
+                "action": "accept",
             }
         }
+    )
 
 
 class TeamInvitationList(BaseModel):
-    """List of invitations with team and sender information."""
-
     id: str
-    team: dict
-    sender: dict
+    team: dict[str, Any]
+    sender: dict[str, Any]
     status: InvitationStatus
     message: str | None = None
     created_at: datetime
     expires_at: datetime
 
-# ============================================================
-# SETTINGS SCHEMAS
-# ============================================================
 
 class SettingCreate(BaseModel):
-    """
-    Create or update application setting.
-    """
-
-    key: str = Field(
-        ...,
-        min_length=1,
-        max_length=100
-    )
-
-    value: str = Field(
-        ...,
-        min_length=1
-    )
-
+    key: str = Field(..., min_length=1, max_length=100)
+    value: Any
     description: str | None = None
-
-    type: str = Field(
-        default="string"
-    )
-    # Allowed values:
-    # string, number, boolean, json
+    value_type: str = Field(default="string")
 
 
 class SettingResponse(BaseModel):
-    """
-    Setting response.
-    """
+    model_config = ConfigDict(from_attributes=True)
 
     key: str
-    value: str
+    value: Any
     description: str | None = None
-    type: str
+    value_type: str
     updated_at: datetime
     updated_by: str | None = None
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
 
 class SettingsDict(BaseModel):
-    """
-    All application settings as a typed dictionary.
-    """
-
     ads_per_registration: int = 2
-
     registration_policy: str = "individual_ads"
-    # Allowed:
-    # individual_ads
-    # captain_ads
-
     max_team_size: int = 5
-
     tournament_registration_timeout: int = 24
-    # Timeout in hours
-
     reward_amount: int = 1000
-
     reward_currency: str = "INR"

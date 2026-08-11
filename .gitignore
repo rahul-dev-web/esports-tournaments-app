@@ -1,11 +1,19 @@
+firebase/*.json
+firebase/**/*.json
+**/*service-account*.json
+**/*firebase-adminsdk*.json
 .env
 **/.env
+**/.env.*
 **/.venv/
 **/node_modules/
 **/.next/
 mobile/.dart_tool/
 mobile/build/
 mobile/.packages
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/app/google-services.json
 __pycache__/
 *.pyc
 # Python
@@ -26,6 +34,16 @@ build/
 .dart_tool/
 *.apk
 *.ipa
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Supabase / local dev artifacts
+backend/*.db
+backend/*.sqlite
+*.db
+*.sqlite
+supabase/.temp/
 
 # Node
 node_modules/
@@ -41,11 +59,10 @@ dist/
 # Environment
 .env.local
 .env.*.local
+.env.test
+.env.production
 
 # Database
-*.db
-*.sqlite
-
 # OS
 .DS_Store
 Thumbs.db

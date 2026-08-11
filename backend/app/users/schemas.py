@@ -1,89 +1,68 @@
-"""
-FILE: backend/app/users/schemas.py
-Pydantic schemas for user API requests and responses.
-COPY THIS FILE AS-IS
-"""
+"""Pydantic schemas for profile API requests and responses."""
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
 
+from pydantic import BaseModel, ConfigDict, Field
 
-# ============================================================
-# REQUEST SCHEMAS (Data coming FROM client TO server)
-# ============================================================
 
 class UpdateUserProfileRequest(BaseModel):
-    """Schema for updating user profile"""
     username: Optional[str] = Field(None, min_length=3, max_length=20)
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     bio: Optional[str] = Field(None, max_length=500)
     country: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
     city: Optional[str] = Field(None, max_length=100)
+    photo_url: Optional[str] = Field(None, max_length=1000)
     preferred_game: Optional[str] = Field(None, max_length=100)
+    social_links: Optional[dict[str, str]] = None
 
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class UpdatePhotoRequest(BaseModel):
-    """Schema for profile photo update"""
     photo_url: str = Field(..., min_length=1, max_length=1000)
-    
-    class Config:
-        extra = "ignore"
 
+    model_config = ConfigDict(extra="ignore")
 
-# ============================================================
-# RESPONSE SCHEMAS (Data sent FROM server TO client)
-# ============================================================
 
 class UserProfileResponse(BaseModel):
-    """Complete user profile response"""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     name: str
     username: str
     email: str
-    bio: Optional[str]
-    country: Optional[str]
-    state: Optional[str]
-    city: Optional[str]
-    photo_url: Optional[str]
-    preferred_game: Optional[str]
-    
+    bio: Optional[str] = ""
+    country: Optional[str] = ""
+    state: Optional[str] = ""
+    city: Optional[str] = ""
+    photo_url: Optional[str] = None
+    preferred_game: Optional[str] = ""
+    social_links: dict[str, str] = {}
+    in_game_uid: Optional[str] = None
     role: str
     is_active: bool
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class UserPublicProfileResponse(BaseModel):
-    """Public profile - limited info"""
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     username: str
     name: str
-    bio: Optional[str]
-    country: Optional[str]
-    city: Optional[str]
-    photo_url: Optional[str]
-    preferred_game: Optional[str]
+    bio: Optional[str] = ""
+    country: Optional[str] = ""
+    city: Optional[str] = ""
+    photo_url: Optional[str] = None
+    preferred_game: Optional[str] = ""
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class UpdateSuccessResponse(BaseModel):
-    """Generic success response"""
     message: str
     data: UserProfileResponse
-
-
-class ErrorResponse(BaseModel):
-    """Generic error response"""
-    error: str
-    detail: Optional[str] = None
