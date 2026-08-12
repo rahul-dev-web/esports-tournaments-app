@@ -31,7 +31,7 @@ class GUID(TypeDecorator):
 
 class RoleEnum(str, Enum): user = "user"; admin = "admin"
 class TournamentStatusEnum(str, Enum): draft = "draft"; published = "published"; closed = "closed"
-class RegistrationStatusEnum(str, Enum): pending = "pending"; ad_verification = "ad_verification"; registered = "registered"; rejected = "rejected"
+class RegistrationStatusEnum(str, Enum): pending = "pending"; ad_verification = "ad_verification"; registered = "registered"; rejected = "rejected"; expired = "expired"
 class RegistrationPolicyEnum(str, Enum): individual_ads = "individual_ads"; captain_ads = "captain_ads"
 class TournamentTypeEnum(str, Enum): solo = "solo"; duo = "duo"; squad = "squad"; custom = "custom"
 class InvitationStatusEnum(str, Enum): pending = "pending"; accepted = "accepted"; rejected = "rejected"; expired = "expired"; cancelled = "cancelled"
@@ -122,7 +122,10 @@ class Tournament(TimestampMixin, Base):
 
 class Registration(TimestampMixin, Base):
     __tablename__ = "tournament_registrations"
-    __table_args__ = (UniqueConstraint("tournament_id", "team_id", name="uq_registration_tournament_team"),)
+    __table_args__ = (
+        UniqueConstraint("tournament_id", "team_id", name="uq_registration_tournament_team"),
+        UniqueConstraint("tournament_id", "slot", name="uq_registration_tournament_slot"),
+    )
     id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
     tournament_id: Mapped[str] = mapped_column(GUID(), ForeignKey("tournaments.id"), nullable=False, index=True)
     team_id: Mapped[str] = mapped_column(GUID(), ForeignKey("teams.id"), nullable=False, index=True)
@@ -132,7 +135,7 @@ class Registration(TimestampMixin, Base):
     ads_required: Mapped[int] = mapped_column(Integer, nullable=False)
     ads_completed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     completed_by: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
-    slot: Mapped[int | None] = mapped_column(Integer, unique=True)
+    slot: Mapped[int | None] = mapped_column(Integer)
     tournament: Mapped[Tournament] = relationship(back_populates="registrations", foreign_keys=[tournament_id])
     team: Mapped[Team] = relationship(foreign_keys=[team_id])
     captain: Mapped[User] = relationship(foreign_keys=[captain_id])
@@ -163,14 +166,28 @@ class Registration(TimestampMixin, Base):
         self.slot = value
 
 
+class AdSession(TimestampMixin, Base):
+    __tablename__ = "ad_sessions"
+    id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
+    registration_id: Mapped[str] = mapped_column(GUID(), ForeignKey("tournament_registrations.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(GUID(), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(30), default="admob", nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reward_ad_events: Mapped[list["RewardAdEvent"]] = relationship(back_populates="session", cascade="all, delete-orphan")
+
+
 class RewardAdEvent(Base):
     __tablename__ = "reward_ad_events"
     id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ad_session_id: Mapped[str] = mapped_column(GUID(), ForeignKey("ad_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     registration_id: Mapped[str] = mapped_column(GUID(), ForeignKey("tournament_registrations.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id: Mapped[str] = mapped_column(GUID(), ForeignKey("profiles.id"), nullable=False)
     provider: Mapped[str] = mapped_column(String(30), nullable=False)
     provider_event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    session: Mapped[AdSession] = relationship(back_populates="reward_ad_events")
 
 
 class Notification(Base):

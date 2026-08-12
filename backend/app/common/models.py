@@ -37,6 +37,7 @@ class RegistrationStatus(str, Enum):
     ad_verification = "ad_verification"
     registered = "registered"
     rejected = "rejected"
+    expired = "expired"
 
 
 class InvitationStatus(str, Enum):
@@ -127,16 +128,17 @@ class Tournament(TournamentCreate):
 class AdCompletion(BaseModel):
     registration_id: str
     viewer_id: str
-    verification_token: str
+    session_token: str
     provider: str = "admob"
     provider_event_id: str | None = None
+    verification_token: str | None = None
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "registration_id": "reg-123",
                 "viewer_id": "user-456",
-                "verification_token": "mock-token-success",
+                "session_token": "ad-session-token",
                 "provider": "admob",
                 "provider_event_id": "evt-123",
             }
@@ -168,6 +170,38 @@ class Registration(BaseModel):
     slot: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: str
+    title: str
+    body: str
+    read_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class DeviceTokenCreate(BaseModel):
+    token: str = Field(min_length=16, max_length=1000)
+    platform: str = Field(min_length=2, max_length=20)
+    device_name: str | None = Field(default=None, max_length=255)
+
+
+class DeviceTokenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: str
+    token: str
+    platform: str
+    device_name: str | None = None
+    is_active: bool
+    last_seen_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class TeamInvitationCreate(BaseModel):

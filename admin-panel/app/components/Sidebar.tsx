@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import {
   Home,
@@ -13,6 +14,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { supabase } from '../lib/supabase';
 
 interface MenuItem {
   label: string;
@@ -22,6 +24,7 @@ interface MenuItem {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const menuItems: MenuItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: <Home size={20} /> },
@@ -61,7 +64,16 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="mt-auto pt-6 border-t border-purple-700">
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-purple-100 hover:bg-white hover:bg-opacity-10 transition-colors">
+        <button
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-purple-100 hover:bg-white hover:bg-opacity-10 transition-colors"
+          onClick={async () => {
+            localStorage.removeItem('adminToken');
+            if (supabase) {
+              await supabase.auth.signOut();
+            }
+            router.push('/login');
+          }}
+        >
           <LogOut size={20} />
           <span>Logout</span>
         </button>

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/team_provider.dart';
  
 class CreateTeamScreen extends ConsumerStatefulWidget {
-  const CreateTeamScreen({Key? key}) : super(key: key);
+  const CreateTeamScreen({super.key});
  
   @override
   ConsumerState<CreateTeamScreen> createState() => _CreateTeamScreenState();
@@ -54,7 +54,9 @@ class _CreateTeamScreenState extends ConsumerState<CreateTeamScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     } finally {

@@ -1,21 +1,23 @@
 {
-    "scripts":
-    {
-        "dev":"next dev",
-        "build":"next build",
-        "start":"next start"
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
     },
-     "dependencies":
-    {
-        "next":"15.4.6",
-        "react":"19.1.1",
-        "react-dom":"19.1.1"
+    "dependencies": {
+        "@supabase/supabase-js": "^2.112.3",
+        "axios": "^1.19.0",
+        "clsx": "^2.1.1",
+        "lucide-react": "^1.31.0",
+        "next": "15.4.6",
+        "react": "19.1.1",
+        "react-dom": "19.1.1"
     },
-    "devDependencies":
-    {
-        "typescript":"^5.9.2",
-        "@types/node":"^24.2.0",
-        "@types/react":"^19.1.9",
-        "@types/react-dom":"^19.1.7"
+    "devDependencies": {
+        "@tailwindcss/postcss": "^4.3.3",
+        "@types/node": "^24.2.0",
+        "@types/react": "^19.1.9",
+        "@types/react-dom": "^19.1.7",
+        "typescript": "^5.9.2"
     }
 }

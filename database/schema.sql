@@ -51,7 +51,8 @@ begin
     'pending',
     'ad_verification',
     'registered',
-    'rejected'
+    'rejected',
+    'expired'
   );
 exception
   when duplicate_object then null;
@@ -301,11 +302,53 @@ create table if not exists public.tournament_registrations (
 
 
 -- ------------------------------------------------------------
+-- AD SESSIONS
+-- ------------------------------------------------------------
+
+create table if not exists public.ad_sessions (
+  id uuid primary key default gen_random_uuid(),
+
+  registration_id uuid not null
+    references public.tournament_registrations(id)
+    on delete cascade,
+
+  user_id uuid not null
+    references public.profiles(id)
+    on delete cascade,
+
+  session_token text not null unique,
+
+  provider text not null default 'admob',
+
+  expires_at timestamptz not null,
+
+  consumed_at timestamptz,
+
+  created_at timestamptz not null default now(),
+
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_ad_sessions_registration
+on public.ad_sessions(registration_id);
+
+create index if not exists idx_ad_sessions_user
+on public.ad_sessions(user_id);
+
+create index if not exists idx_ad_sessions_expires
+on public.ad_sessions(expires_at);
+
+
+-- ------------------------------------------------------------
 -- REWARD AD EVENTS
 -- ------------------------------------------------------------
 
 create table if not exists public.reward_ad_events (
   id uuid primary key default gen_random_uuid(),
+
+  ad_session_id uuid not null
+    references public.ad_sessions(id)
+    on delete cascade,
 
   registration_id uuid not null
     references public.tournament_registrations(id)
@@ -723,7 +766,7 @@ begin
      or new.in_game_uid is distinct from old.in_game_uid
      or new.created_at is distinct from old.created_at
   then
-    if auth.role() <> 'service_role' then
+    if not public.is_admin() then
       raise exception
         'immutable profile field update denied';
     end if;
@@ -1011,6 +1054,7 @@ alter table public.team_invitations enable row level security;
 alter table public.tournaments enable row level security;
 alter table public.tournament_registrations enable row level security;
 alter table public.reward_ad_events enable row level security;
+alter table public.ad_sessions enable row level security;
 alter table public.notifications enable row level security;
 alter table public.device_tokens enable row level security;
 alter table public.settings enable row level security;
@@ -1377,6 +1421,68 @@ for delete
 using (
   public.is_admin()
   or captain_id = auth.uid()
+);
+
+
+-- ============================================================
+-- 18. REWARD AD EVENTS POLICIES
+-- ============================================================
+
+drop policy if exists ad_sessions_select_party
+on public.ad_sessions;
+
+drop policy if exists ad_sessions_admin_insert
+on public.ad_sessions;
+
+drop policy if exists ad_sessions_admin_update
+on public.ad_sessions;
+
+drop policy if exists ad_sessions_admin_delete
+on public.ad_sessions;
+
+
+create policy ad_sessions_select_party
+on public.ad_sessions
+for select
+using (
+  public.is_admin()
+  or user_id = auth.uid()
+  or exists (
+    select 1
+    from public.tournament_registrations r
+    where r.id = registration_id
+      and (
+        r.captain_id = auth.uid()
+        or public.is_team_member(r.team_id, auth.uid())
+      )
+  )
+);
+
+
+create policy ad_sessions_admin_insert
+on public.ad_sessions
+for insert
+with check (
+  public.is_admin()
+);
+
+
+create policy ad_sessions_admin_update
+on public.ad_sessions
+for update
+using (
+  public.is_admin()
+)
+with check (
+  public.is_admin()
+);
+
+
+create policy ad_sessions_admin_delete
+on public.ad_sessions
+for delete
+using (
+  public.is_admin()
 );
 
 

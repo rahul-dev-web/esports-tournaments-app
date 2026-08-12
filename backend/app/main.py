@@ -11,6 +11,7 @@ from app.core.database import init_db
 from app.admin.router import router as admin_router
 from app.ads.router import router as ads_router
 from app.auth.router import router as auth_router
+from app.notifications.router import router as notifications_router
 from app.registrations.router import router as registrations_router
 from app.teams.router import router as teams_router
 from app.tournaments.router import router as tournaments_router
@@ -39,6 +40,7 @@ app.include_router(teams_router, prefix="/api/teams", tags=["teams"])
 app.include_router(tournaments_router, prefix="/api/tournaments", tags=["tournaments"])
 app.include_router(registrations_router, prefix="/api/registrations", tags=["registrations"])
 app.include_router(ads_router, prefix="/api/ads", tags=["ads"])
+app.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
 

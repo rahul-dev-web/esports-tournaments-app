@@ -5,7 +5,7 @@ import 'create_team_screen.dart';
 import 'team_details_screen.dart';
  
 class TeamsListScreen extends ConsumerWidget {
-  const TeamsListScreen({Key? key}) : super(key: key);
+  const TeamsListScreen({super.key});
  
   @override
   Widget build(BuildContext context, WidgetRef ref) {

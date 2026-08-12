@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.common.config import settings
 from app.core.database import SessionLocal
-from app.core.models import Registration, Team, Tournament
+from app.core.models import AdSession, Registration, Team, Tournament
 from app.registrations.router import _record_reward_event
 
 
@@ -99,6 +99,8 @@ def _parse_custom_data(value: str | None) -> dict[str, str]:
         result["user_id"] = pieces[1]
     if len(pieces) > 2:
         result["provider_event_id"] = pieces[2]
+    if len(pieces) > 3:
+        result["session_token"] = pieces[3]
     return result
 
 
@@ -124,12 +126,15 @@ async def admob_ssv(request: Request):
     registration_id = custom_data.get("registration_id")
     user_id = custom_data.get("user_id") or params.get("user_id")
     provider_event_id = params.get("transaction_id") or custom_data.get("provider_event_id")
+    session_token = custom_data.get("session_token")
     provider = params.get("ad_network", "admob")
 
     if not registration_id or not user_id:
         raise HTTPException(status_code=400, detail="custom_data must include registration_id and user_id")
     if not provider_event_id:
         raise HTTPException(status_code=400, detail="Missing transaction_id/provider_event_id")
+    if not session_token:
+        raise HTTPException(status_code=400, detail="custom_data must include session_token")
 
     db = SessionLocal()
     try:
@@ -139,14 +144,22 @@ async def admob_ssv(request: Request):
 
         tournament = db.query(Tournament).filter(Tournament.id == registration.tournament_id).first()
         team = db.query(Team).filter(Team.id == registration.team_id).first()
+        session = db.query(AdSession).filter(AdSession.session_token == session_token).first()
         if not tournament or not team:
             raise HTTPException(status_code=404, detail="Tournament or team not found")
+        if not session:
+            raise HTTPException(status_code=404, detail="Ad session not found")
+        if session.registration_id != registration_id or session.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Ad session does not match registration/user")
+        if session.consumed_at is not None:
+            raise HTTPException(status_code=409, detail="Ad session already consumed")
 
         _record_reward_event(
             db,
             registration=registration,
             tournament=tournament,
             team=team,
+            session=session,
             user_id=user_id,
             provider=str(provider),
             provider_event_id=provider_event_id,

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from datetime import datetime, timezone
+from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +17,7 @@ from app.common.deps import current_user_id
 from app.common.models import AdCompletion, Registration as RegistrationSchema, RegistrationStatus
 from app.core.database import get_db
 from app.core.models import (
+    AdSession,
     Registration,
     RegistrationPolicyEnum,
     RegistrationStatusEnum,
@@ -70,9 +73,23 @@ def _required_ads(tournament: Tournament, team: Team) -> int:
     return max(1, tournament.team_size)
 
 
+def _count_verified_ads(db: Session, registration_id: str, user_id: str | None = None) -> int:
+    query = db.query(RewardAdEvent).filter(RewardAdEvent.registration_id == registration_id)
+    if user_id is not None:
+        query = query.filter(RewardAdEvent.user_id == user_id)
+    return query.count()
+
+
 def _finalize_registration(db: Session, registration: Registration, tournament: Tournament) -> Registration:
     if registration.status == RegistrationStatusEnum.registered:
         return registration
+
+    tournament = (
+        db.query(Tournament)
+        .filter(Tournament.id == tournament.id)
+        .with_for_update()
+        .one()
+    )
 
     if tournament.registered_teams >= tournament.total_slots:
         raise HTTPException(status_code=409, detail="Tournament is full, no slots available")
@@ -85,12 +102,28 @@ def _finalize_registration(db: Session, registration: Registration, tournament: 
     return registration
 
 
+def _load_active_session(db: Session, token: str) -> AdSession:
+    session = (
+        db.query(AdSession)
+        .filter(AdSession.session_token == token)
+        .first()
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Ad session not found")
+    if session.consumed_at is not None:
+        raise HTTPException(status_code=409, detail="Ad session already consumed")
+    if session.expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Ad session expired")
+    return session
+
+
 def _record_reward_event(
     db: Session,
     *,
     registration: Registration,
     tournament: Tournament,
     team: Team,
+    session: AdSession,
     user_id: str,
     provider: str,
     provider_event_id: str,
@@ -107,23 +140,23 @@ def _record_reward_event(
         if existing_event:
             raise HTTPException(status_code=409, detail="Duplicate ad event")
 
-    completed_by = _coerce_completed_by(registration.completed_by)
     team_member_ids = _team_member_ids(team)
 
     if tournament.policy == RegistrationPolicyEnum.individual_ads:
         if user_id not in team_member_ids:
             raise HTTPException(status_code=403, detail="Only team members can contribute ads for this policy")
-        if user_id in completed_by:
+        if _count_verified_ads(db, registration.id, user_id) >= 1:
             raise HTTPException(status_code=409, detail="User has already contributed an ad for this registration")
     else:
         if user_id != registration.captain_id:
             raise HTTPException(status_code=403, detail="Only the captain can contribute ads for this policy")
-        if completed_by:
+        if _count_verified_ads(db, registration.id, user_id) >= registration.ads_required:
             raise HTTPException(status_code=409, detail="Captain has already completed the required ads")
 
     try:
         db.add(
             RewardAdEvent(
+                ad_session_id=session.id,
                 registration_id=registration.id,
                 user_id=user_id,
                 provider=provider,
@@ -131,9 +164,11 @@ def _record_reward_event(
                 verified_at=datetime.now(timezone.utc),
             )
         )
-        completed_by.append(user_id)
-        registration.completed_by = completed_by
-        registration.ads_completed = len(completed_by) if tournament.policy == RegistrationPolicyEnum.individual_ads else registration.ads_completed + 1
+        session.consumed_at = datetime.now(timezone.utc)
+        db.flush()
+        verified_count = _count_verified_ads(db, registration.id)
+        registration.ads_completed = verified_count
+        registration.completed_by = _coerce_completed_by(registration.completed_by) + [user_id]
 
         if registration.status == RegistrationStatusEnum.pending:
             registration.status = RegistrationStatusEnum.ad_verification
@@ -164,7 +199,12 @@ async def start_registration(
     user_id: str = Depends(current_user_id),
     db: Session = Depends(get_db),
 ):
-    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    tournament = (
+        db.query(Tournament)
+        .filter(Tournament.id == tournament_id)
+        .with_for_update()
+        .first()
+    )
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
@@ -216,6 +256,45 @@ async def start_registration(
     return _to_schema(registration)
 
 
+@router.post("/{registration_id}/ads/session")
+async def create_ad_session(
+    registration_id: str,
+    user_id: str = Depends(current_user_id),
+    db: Session = Depends(get_db),
+):
+    registration = db.query(Registration).filter(Registration.id == registration_id).first()
+    if not registration:
+        raise HTTPException(status_code=404, detail="Registration not found")
+
+    tournament = db.query(Tournament).filter(Tournament.id == registration.tournament_id).first()
+    team = db.query(Team).filter(Team.id == registration.team_id).first()
+    if not tournament or not team:
+        raise HTTPException(status_code=404, detail="Tournament or team not found")
+
+    team_member_ids = _team_member_ids(team)
+    if tournament.policy == RegistrationPolicyEnum.individual_ads and user_id not in team_member_ids:
+        raise HTTPException(status_code=403, detail="Only team members can create ad sessions")
+    if tournament.policy == RegistrationPolicyEnum.captain_ads and user_id != registration.captain_id:
+        raise HTTPException(status_code=403, detail="Only the captain can create ad sessions")
+
+    session = AdSession(
+        registration_id=registration.id,
+        user_id=user_id,
+        session_token=secrets.token_urlsafe(32),
+        provider="admob",
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return {
+        "registration_id": registration.id,
+        "session_id": session.id,
+        "session_token": session.session_token,
+        "expires_at": session.expires_at,
+    }
+
+
 @router.post("/{registration_id}/ads/start", response_model=RegistrationSchema)
 async def start_ad_verification(
     registration_id: str,
@@ -250,17 +329,26 @@ async def complete_ad(
         raise HTTPException(status_code=403, detail="You can only complete ads for yourself")
     if not payload.provider_event_id:
         raise HTTPException(status_code=422, detail="provider_event_id is required")
-    if not payload.verification_token:
-        raise HTTPException(status_code=422, detail="verification_token is required")
+    if not payload.session_token:
+        raise HTTPException(status_code=422, detail="session_token is required")
 
     registration = db.query(Registration).filter(Registration.id == registration_id).first()
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
 
-    tournament = db.query(Tournament).filter(Tournament.id == registration.tournament_id).first()
+    tournament = (
+        db.query(Tournament)
+        .filter(Tournament.id == registration.tournament_id)
+        .with_for_update()
+        .first()
+    )
     team = db.query(Team).filter(Team.id == registration.team_id).first()
     if not tournament or not team:
         raise HTTPException(status_code=404, detail="Tournament or team not found")
+
+    session = _load_active_session(db, payload.session_token)
+    if session.registration_id != registration_id or session.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Ad session does not belong to this user or registration")
 
     return _to_schema(
         _record_reward_event(
@@ -268,6 +356,7 @@ async def complete_ad(
             registration=registration,
             tournament=tournament,
             team=team,
+            session=session,
             user_id=user_id,
             provider=payload.provider,
             provider_event_id=payload.provider_event_id,

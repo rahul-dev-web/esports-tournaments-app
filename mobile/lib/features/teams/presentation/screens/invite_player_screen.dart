@@ -5,10 +5,7 @@ import '../providers/team_provider.dart';
 class InvitePlayerScreen extends ConsumerStatefulWidget {
   final String teamId;
  
-  const InvitePlayerScreen({
-    Key? key,
-    required this.teamId,
-  }) : super(key: key);
+  const InvitePlayerScreen({super.key, required this.teamId});
  
   @override
   ConsumerState<InvitePlayerScreen> createState() =>
@@ -97,7 +94,7 @@ class _InvitePlayerScreenState extends ConsumerState<InvitePlayerScreen> {
                               'message': 'Join my team!',
                             }).future);
  
-                            if (mounted) {
+                            if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Invitation sent!'),
@@ -105,6 +102,7 @@ class _InvitePlayerScreenState extends ConsumerState<InvitePlayerScreen> {
                               );
                             }
                           } catch (e) {
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Error: $e')),
                             );

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/auth_providers.dart';
 import '../providers/team_provider.dart';
 import 'invite_player_screen.dart';
  
 class TeamDetailsScreen extends ConsumerWidget {
   final String teamId;
  
-  const TeamDetailsScreen({
-    Key? key,
-    required this.teamId,
-  }) : super(key: key);
+  const TeamDetailsScreen({super.key, required this.teamId});
  
   @override
   Widget build(BuildContext context, WidgetRef ref) {
