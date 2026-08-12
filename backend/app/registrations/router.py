@@ -239,17 +239,16 @@ async def start_registration(
     if tournament.registered_teams >= tournament.total_slots:
         raise HTTPException(status_code=409, detail="Tournament is full, no slots available")
 
-    registration = Registration(
-        tournament_id=tournament_id,
-        team_id=team_id,
-        captain_id=user_id,
-        status=RegistrationStatusEnum.pending,
-        policy=tournament.policy,
-        ads_required=_required_ads(tournament, team),
-        ads_completed=0,
-        completed_by=[],
-        slot=None,
-    )
+    registration = Registration()
+    registration.tournament_id = tournament_id
+    registration.team_id = team_id
+    registration.captain_id = user_id
+    registration.status = RegistrationStatusEnum.pending
+    registration.policy = tournament.policy
+    registration.ads_required = _required_ads(tournament, team)
+    registration.ads_completed = 0
+    registration.completed_by = []
+    registration.slot = None
     db.add(registration)
     db.commit()
     db.refresh(registration)
@@ -277,13 +276,12 @@ async def create_ad_session(
     if tournament.policy == RegistrationPolicyEnum.captain_ads and user_id != registration.captain_id:
         raise HTTPException(status_code=403, detail="Only the captain can create ad sessions")
 
-    session = AdSession(
-        registration_id=registration.id,
-        user_id=user_id,
-        session_token=secrets.token_urlsafe(32),
-        provider="admob",
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
-    )
+    session = AdSession()
+    session.registration_id = registration.id
+    session.user_id = user_id
+    session.session_token = secrets.token_urlsafe(32)
+    session.provider = "admob"
+    session.expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
     db.add(session)
     db.commit()
     db.refresh(session)
