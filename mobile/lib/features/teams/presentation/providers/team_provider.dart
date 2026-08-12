@@ -8,9 +8,11 @@ final teamDataSourceProvider = Provider((ref) {
 });
  
 String? _sessionToken() => Supabase.instance.client.auth.currentSession?.accessToken;
- 
+
 // Current user ID provider
-final currentUserIdProvider = StateProvider<String?>((ref) => null);
+final currentUserIdProvider = Provider<String?>(
+  (ref) => Supabase.instance.client.auth.currentUser?.id,
+);
  
 // ============================================================
 // TEAMS LIST

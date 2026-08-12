@@ -716,18 +716,17 @@ security definer
 set search_path = public
 as $$
 begin
-
   if new.id is distinct from old.id
      or new.email is distinct from old.email
+     or new.role is distinct from old.role
+     or new.is_active is distinct from old.is_active
      or new.in_game_uid is distinct from old.in_game_uid
      or new.created_at is distinct from old.created_at
   then
-
     if auth.role() <> 'service_role' then
       raise exception
         'immutable profile field update denied';
     end if;
-
   end if;
 
   return new;

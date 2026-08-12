@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout' ;
+import Layout from '../components/Layout';
 import StatsCard from '../components/StatsCard';
 import { Trophy, Users, Users2, FileText } from 'lucide-react';
 import Link from 'next/link';
@@ -51,105 +51,98 @@ export default function DashboardPage() {
     fetchStats();
   }, []);
 
-  if (error) {
-    return (
-      <Layout title="Dashboard" subtitle="Overview of your platform">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          {error}
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(138,92,255,0.18),_transparent_30%),linear-gradient(180deg,#08101f_0%,#0b1328_55%,#050814_100%)] text-white">
+      <Layout title="Dashboard" subtitle="Overview of your tournament platform">
+        {error ? (
+          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-red-100">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
+          <StatsCard
+            label="Total Users"
+            value={loading ? '-' : stats.total_users}
+            trend={12}
+            icon={<Users size={24} />}
+          />
+          <StatsCard
+            label="Total Teams"
+            value={loading ? '-' : stats.total_teams}
+            trend={8}
+            icon={<Users2 size={24} />}
+          />
+          <StatsCard
+            label="Registrations"
+            value={loading ? '-' : stats.total_registrations}
+            trend={15}
+            icon={<FileText size={24} />}
+          />
+          <StatsCard
+            label="Active Tournaments"
+            value={loading ? '-' : stats.active_tournaments}
+            trend={5}
+            icon={<Trophy size={24} />}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+            <h2 className="text-lg font-bold text-white">Quick Actions</h2>
+            <div className="mt-4 space-y-3">
+              <Link href="/tournaments/new" className="block rounded-2xl bg-gradient-to-r from-violet-500 to-cyan-400 px-4 py-3 font-semibold text-white transition hover:opacity-95">
+                Create Tournament
+              </Link>
+              <Link href="/users" className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold text-white transition hover:bg-white/10">
+                Manage Users
+              </Link>
+              <Link href="/registrations" className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-semibold text-white transition hover:bg-white/10">
+                View Registrations
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+            <h2 className="text-lg font-bold text-white">Registration Policy</h2>
+            <p className="mt-3 text-sm text-white/70">
+              Choose whether tournaments use individual player ads or captain ads for registration.
+            </p>
+            <select className="mt-4 w-full rounded-2xl border border-white/10 bg-[#0d152b] px-4 py-3 text-white outline-none ring-0 focus:border-cyan-400">
+              <option value="individual_ads">Individual Ads (each player watches 1)</option>
+              <option value="captain_ads">Captain Ads (captain watches all)</option>
+            </select>
+            <p className="mt-3 text-xs text-white/50">Changes apply to new registrations only</p>
+          </div>
+        </div>
+
+        <div className="mt-8 rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
+          <h2 className="text-lg font-bold text-white">Recent Activities</h2>
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div>
+                <p className="font-medium text-white">New Tournament Created</p>
+                <p className="text-sm text-white/55">Summer Championship</p>
+              </div>
+              <span className="text-xs text-white/50">2 hours ago</span>
+            </div>
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div>
+                <p className="font-medium text-white">Team Registered</p>
+                <p className="text-sm text-white/55">Team Alpha for Tournament</p>
+              </div>
+              <span className="text-xs text-white/50">5 hours ago</span>
+            </div>
+            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div>
+                <p className="font-medium text-white">New User Joined</p>
+                <p className="text-sm text-white/55">5 new players registered</p>
+              </div>
+              <span className="text-xs text-white/50">1 day ago</span>
+            </div>
+          </div>
         </div>
       </Layout>
-    );
-  }
-
-  return (
-    <Layout title="Dashboard" subtitle="Overview of your tournament platform">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          label="Total Users"
-          value={loading ? '-' : stats.total_users}
-          trend={12}
-          icon={<Users size={24} />}
-        />
-        <StatsCard
-          label="Total Teams"
-          value={loading ? '-' : stats.total_teams}
-          trend={8}
-          icon={<Users2 size={24} />}
-        />
-        <StatsCard
-          label="Registrations"
-          value={loading ? '-' : stats.total_registrations}
-          trend={15}
-          icon={<FileText size={24} />}
-        />
-        <StatsCard
-          label="Active Tournaments"
-          value={loading ? '-' : stats.active_tournaments}
-          trend={5}
-          icon={<Trophy size={24} />}
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Links */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="space-y-2">
-            <Link href="/tournaments/new" className="block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
-              Create Tournament
-            </Link>
-            <Link href="/users" className="block px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-              Manage Users
-            </Link>
-            <Link href="/registrations" className="block px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-              View Registrations
-            </Link>
-          </div>
-        </div>
-
-        {/* Registration Policy */}
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Registration Policy</h2>
-          <p className="text-gray-600 text-sm mb-4">
-            Choose whether tournaments use individual player ads or captain ads for registration.
-          </p>
-          <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600">
-            <option value="individual_ads">Individual Ads (each player watches 1)</option>
-            <option value="captain_ads">Captain Ads (captain watches all)</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-2">Changes apply to new registrations only</p>
-        </div>
-      </div>
-
-      {/* Recent Activities */}
-      <div className="mt-8 bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Recent Activities</h2>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between py-2 border-b border-gray-200">
-            <div>
-              <p className="text-gray-900 font-medium">New Tournament Created</p>
-              <p className="text-sm text-gray-500">Summer Championship</p>
-            </div>
-            <span className="text-xs text-gray-500">2 hours ago</span>
-          </div>
-          <div className="flex items-center justify-between py-2 border-b border-gray-200">
-            <div>
-              <p className="text-gray-900 font-medium">Team Registered</p>
-              <p className="text-sm text-gray-500">Team Alpha for Tournament</p>
-            </div>
-            <span className="text-xs text-gray-500">5 hours ago</span>
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-gray-900 font-medium">New User Joined</p>
-              <p className="text-sm text-gray-500">5 new players registered</p>
-            </div>
-            <span className="text-xs text-gray-500">1 day ago</span>
-          </div>
-        </div>
-      </div>
-    </Layout>
+    </div>
   );
 }

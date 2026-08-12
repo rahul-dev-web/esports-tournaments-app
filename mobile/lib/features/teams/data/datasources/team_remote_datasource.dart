@@ -200,7 +200,7 @@ class TeamRemoteDataSource {
     String invitationId,
   ) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/teams/$teamId/invitations/$invitationId/accept'),
+      Uri.parse('$baseUrl/teams/invitations/$invitationId/accept'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ class TeamRemoteDataSource {
     String invitationId,
   ) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/teams/$teamId/invitations/$invitationId/reject'),
+      Uri.parse('$baseUrl/teams/invitations/$invitationId/reject'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
