@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,6 +10,25 @@ import 'core/router.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
+FirebaseOptions? _firebaseWebOptions() {
+  if (firebaseApiKey.isEmpty ||
+      firebaseProjectId.isEmpty ||
+      firebaseMessagingSenderId.isEmpty ||
+      firebaseAppId.isEmpty) {
+    return null;
+  }
+
+  return FirebaseOptions(
+    apiKey: firebaseApiKey,
+    authDomain: firebaseAuthDomain.isNotEmpty ? firebaseAuthDomain : null,
+    projectId: firebaseProjectId,
+    storageBucket: firebaseStorageBucket.isNotEmpty ? firebaseStorageBucket : null,
+    messagingSenderId: firebaseMessagingSenderId,
+    appId: firebaseAppId,
+    measurementId: firebaseMeasurementId.isNotEmpty ? firebaseMeasurementId : null,
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -19,10 +39,22 @@ Future<void> main() async {
     );
   }
 
-  await MobileAds.instance.initialize();
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await FirebaseMessaging.instance.requestPermission();
+  if (!kIsWeb) {
+    await MobileAds.instance.initialize();
+  }
+
+  if (kIsWeb) {
+    final options = _firebaseWebOptions();
+    if (options != null) {
+      await Firebase.initializeApp(options: options);
+    } else {
+      debugPrint('Firebase web options are not configured; skipping Firebase.initializeApp() on web.');
+    }
+  } else {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await FirebaseMessaging.instance.requestPermission();
+  }
 
   runApp(const ProviderScope(child: ArenaHubApp()));
 }

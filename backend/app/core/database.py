@@ -14,8 +14,18 @@ from app.common.config import settings
 logger = logging.getLogger(__name__)
 
 
+def build_database_url(raw_url: str) -> str:
+    if raw_url.startswith("postgresql://"):
+        try:
+            import psycopg  # noqa: F401
+            return raw_url.replace("postgresql://", "postgresql+psycopg://", 1)
+        except ImportError:
+            return raw_url
+    return raw_url
+
+
 engine = create_engine(
-    settings.DATABASE_URL,
+    build_database_url(settings.DATABASE_URL),
     echo=False,
     pool_pre_ping=True,
     connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {},

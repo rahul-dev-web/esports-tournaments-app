@@ -6,7 +6,7 @@ All endpoints require admin authentication
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Any, Optional, cast
 from datetime import datetime
 from app.common.deps import require_admin, current_user_id
 from app.core.database import get_db
@@ -26,10 +26,10 @@ router = APIRouter(tags=["admin"])
 # SETTINGS MANAGEMENT (Priority 1 - CRITICAL!)
 # ============================================================================
 
-def get_setting(db: Session, key: str, default: Optional[str] = None) -> Optional[str]:
+def get_setting(db: Session, key: str, default: Any = None) -> Any:
     """Helper to get setting by key"""
     setting = db.query(Settings).filter(Settings.key == key).first()
-    return setting.value if setting else default
+    return cast(Any, setting.value) if setting is not None else default
 
 @router.get("/settings")
 async def get_all_settings(
@@ -348,9 +348,9 @@ async def approve_registration(
         
         if tournament:
             # Find next available slot
-            max_slot = db.query(func.max(Registration.slot_number)).filter(
+            max_slot = db.query(func.max(Registration.slot)).filter(
                 Registration.tournament_id == tournament.id,
-                Registration.slot_number != None
+                Registration.slot.isnot(None)
             ).scalar() or 0
             
             registration.slot_number = max_slot + 1
@@ -428,7 +428,9 @@ async def export_registrations(
     for reg in registrations:
         tournament = db.query(Tournament).filter(Tournament.id == reg.tournament_id).first()
         team = db.query(Team).filter(Team.id == reg.team_id).first()
-        captain = db.query(User).filter(User.id == team.captain_id).first()
+        captain = None
+        if team:
+            captain = db.query(User).filter(User.id == team.captain_id).first()
         
         writer.writerow([
             reg.id,
@@ -458,7 +460,7 @@ async def export_registrations(
 @router.patch("/tournaments/{tournament_id}/status/{new_status}")
 async def change_tournament_status(
     tournament_id: str,
-    new_status: str,
+    new_status: TournamentStatusEnum,
     admin_id: str = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -476,9 +478,6 @@ async def change_tournament_status(
     
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
-    
-    if new_status not in ["draft", "published", "closed"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
     
     tournament.status = new_status
     db.commit()

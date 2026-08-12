@@ -18,6 +18,41 @@ const String oauthRedirectUrl = String.fromEnvironment(
   defaultValue: 'com.arenahub.arenahub_mobile://login-callback/',
 );
 
+const String firebaseApiKey = String.fromEnvironment(
+  'FIREBASE_API_KEY',
+  defaultValue: '',
+);
+
+const String firebaseAuthDomain = String.fromEnvironment(
+  'FIREBASE_AUTH_DOMAIN',
+  defaultValue: '',
+);
+
+const String firebaseProjectId = String.fromEnvironment(
+  'FIREBASE_PROJECT_ID',
+  defaultValue: '',
+);
+
+const String firebaseStorageBucket = String.fromEnvironment(
+  'FIREBASE_STORAGE_BUCKET',
+  defaultValue: '',
+);
+
+const String firebaseMessagingSenderId = String.fromEnvironment(
+  'FIREBASE_MESSAGING_SENDER_ID',
+  defaultValue: '',
+);
+
+const String firebaseAppId = String.fromEnvironment(
+  'FIREBASE_APP_ID',
+  defaultValue: '',
+);
+
+const String firebaseMeasurementId = String.fromEnvironment(
+  'FIREBASE_MEASUREMENT_ID',
+  defaultValue: '',
+);
+
 const String admobAndroidAppId = String.fromEnvironment(
   'ADMOB_ANDROID_APP_ID',
   defaultValue: '',

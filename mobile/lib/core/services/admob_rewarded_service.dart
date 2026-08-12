@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config.dart';
@@ -8,7 +7,11 @@ class AdmobRewardedService {
   RewardedAd? _rewardedAd;
 
   String get rewardedAdUnitId {
-    if (Platform.isIOS) {
+    if (kIsWeb) {
+      return '';
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
       return admobIosRewardedAdUnitId;
     }
     return admobAndroidRewardedAdUnitId;
@@ -19,6 +22,10 @@ class AdmobRewardedService {
     required String registrationId,
     required String userId,
   }) async {
+    if (kIsWeb) {
+      return;
+    }
+
     if (rewardedAdUnitId.isEmpty) {
       throw StateError('AdMob rewarded ad unit id is not configured');
     }
