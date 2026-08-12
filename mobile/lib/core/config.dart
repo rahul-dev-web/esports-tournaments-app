@@ -17,3 +17,23 @@ const String oauthRedirectUrl = String.fromEnvironment(
   'OAUTH_REDIRECT_URL',
   defaultValue: 'com.arenahub.arenahub_mobile://login-callback/',
 );
+
+const String admobAndroidAppId = String.fromEnvironment(
+  'ADMOB_ANDROID_APP_ID',
+  defaultValue: '',
+);
+
+const String admobIosAppId = String.fromEnvironment(
+  'ADMOB_IOS_APP_ID',
+  defaultValue: '',
+);
+
+const String admobAndroidRewardedAdUnitId = String.fromEnvironment(
+  'ADMOB_ANDROID_REWARDED_AD_UNIT_ID',
+  defaultValue: '',
+);
+
+const String admobIosRewardedAdUnitId = String.fromEnvironment(
+  'ADMOB_IOS_REWARDED_AD_UNIT_ID',
+  defaultValue: '',
+);

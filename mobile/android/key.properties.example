@@ -1,0 +1,4 @@
+storeFile=path/to/upload-keystore.jks
+storePassword=replace-me
+keyAlias=upload
+keyPassword=replace-me

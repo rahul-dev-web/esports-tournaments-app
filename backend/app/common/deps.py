@@ -91,7 +91,6 @@ def _get_or_create_profile(db: Session, claims: dict[str, Any]) -> User:
     user_id, email, name = _extract_profile_payload(claims)
     profile = db.query(User).filter(User.id == user_id).first()
     if profile:
-        profile.email = email
         if not profile.name:
             profile.name = name
         if not profile.username:

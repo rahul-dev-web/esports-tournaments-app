@@ -249,8 +249,22 @@ async def add_member(
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    if team.is_private and team.captain_id != user_id:
-        raise HTTPException(status_code=403, detail="Can't join private team")
+    if new_user_id != user_id:
+        raise HTTPException(status_code=403, detail="You can only add yourself through the join flow")
+
+    pending_invite = (
+        db.query(TeamInvitation)
+        .filter(
+            TeamInvitation.team_id == team_id,
+            TeamInvitation.receiver_id == user_id,
+            TeamInvitation.status == InvitationStatusEnum.pending,
+            TeamInvitation.expires_at > datetime.utcnow(),
+        )
+        .first()
+    )
+
+    if team.is_private and not pending_invite:
+        raise HTTPException(status_code=403, detail="Private teams require a valid invitation")
 
     # Check if already member
     existing = db.query(TeamMember).filter(
@@ -263,9 +277,12 @@ async def add_member(
 
     member = TeamMember(team_id=team_id, user_id=new_user_id)
     db.add(member)
+    if pending_invite:
+        pending_invite.status = InvitationStatusEnum.accepted
+        pending_invite.updated_at = datetime.utcnow()
     db.commit()
 
-    logger.info(f"User {new_user_id} added to team {team_id}")
+    logger.info(f"User {new_user_id} joined team {team_id}")
     return {"success": True, "message": "Member added"}
 
 @router.delete("/{team_id}/members/{member_user_id}", tags=["teams"])

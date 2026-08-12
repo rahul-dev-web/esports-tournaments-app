@@ -10,23 +10,23 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle }: HeaderProps) {
   return (
-    <header className="bg-white border-b border-gray-200 px-8 py-6">
+    <header className="border-b border-white/10 bg-white/5 px-8 py-6 backdrop-blur-xl">
       <div className="flex justify-between items-center">
         {/* Title */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
-          {subtitle && <p className="text-gray-500 mt-1">{subtitle}</p>}
+          <h1 className="text-3xl font-bold text-white">{title}</h1>
+          {subtitle && <p className="mt-1 text-white/65">{subtitle}</p>}
         </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-6">
-          <button className="p-2 hover:bg-gray-100 rounded-lg">
-            <Bell size={20} className="text-gray-600" />
+          <button className="rounded-lg p-2 hover:bg-white/10">
+            <Bell size={20} className="text-white/75" />
           </button>
-          <button className="p-2 hover:bg-gray-100 rounded-lg">
-            <Settings size={20} className="text-gray-600" />
+          <button className="rounded-lg p-2 hover:bg-white/10">
+            <Settings size={20} className="text-white/75" />
           </button>
-          <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 shadow-lg shadow-violet-500/25">
             <User size={20} className="text-white" />
           </div>
         </div>

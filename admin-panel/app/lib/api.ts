@@ -48,28 +48,28 @@ apiClient.interceptors.response.use(
 export const usersAPI = {
   async getAll(page = 1, limit = 10) {
     const response = await apiClient.get(
-      `/users?skip=${(page - 1) * limit}&limit=${limit}`
+      `/admin/users?skip=${(page - 1) * limit}&limit=${limit}`
     );
 
-    return response.data;
+    return response.data.users ?? response.data;
   },
 
   async getOne(userId: string) {
-    const response = await apiClient.get(`/users/${userId}`);
+    const response = await apiClient.get(`/admin/users/${userId}`);
 
     return response.data;
   },
 
   async update(userId: string, data: any) {
-    const response = await apiClient.patch(`/users/${userId}`, data);
+    const response = await apiClient.patch(`/admin/users/${userId}`, data);
 
     return response.data;
   },
 
   async search(query: string) {
-    const response = await apiClient.get(`/users?search=${query}`);
+    const response = await apiClient.get(`/admin/users?search=${query}`);
 
-    return response.data;
+    return response.data.users ?? response.data;
   },
 };
 
