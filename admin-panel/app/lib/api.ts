@@ -8,7 +8,6 @@ import axios, { AxiosError } from 'axios';
 // Base URL - change based on environment
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-  console.log('API BASE URL:', API_BASE_URL);
 
 // Create axios instance
 const apiClient = axios.create({
