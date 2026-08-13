@@ -190,11 +190,19 @@ export default function EditUserPage() {
     let cancelled = false;
 
     async function loadUser() {
+      const safeUserId = userId;
+
+      if (!safeUserId || typeof safeUserId !== 'string') {
+        setError('Invalid user ID.');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
 
-        const data = await usersAPI.getOne(userId);
+        const data = await usersAPI.getOne(safeUserId);
 
         if (cancelled) {
           return;

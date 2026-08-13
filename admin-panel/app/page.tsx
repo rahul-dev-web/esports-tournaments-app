@@ -9,7 +9,7 @@ const cards = [
 
 export default function Dashboard() {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(138,92,255,0.24),_transparent_32%),linear-gradient(180deg,#07101f_0%,#0b1328_55%,#050814_100%)] px-6 py-10 text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(138,92,255,0.24),transparent_32%),linear-gradient(180deg,#07101f_0%,#0b1328_55%,#050814_100%)] px-6 py-10 text-white">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col gap-4 rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl md:flex-row md:items-center md:justify-between">
           <div>
@@ -28,7 +28,7 @@ export default function Dashboard() {
             </Link>
             <Link
               href="/tournaments/new"
-              className="rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-95"
+              className="rounded-full bg-linear-to-r from-violet-500 to-cyan-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/25 transition hover:opacity-95"
             >
               Create Tournament
             </Link>
@@ -39,12 +39,12 @@ export default function Dashboard() {
           {cards.map(([label, value]) => (
             <article
               key={label}
-              className="rounded-[24px] border border-white/10 bg-white/6 p-5 shadow-xl shadow-black/20 backdrop-blur-md"
+              className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl shadow-black/20 backdrop-blur-md"
             >
               <p className="text-sm text-white/60">{label}</p>
               <h2 className="mt-3 text-4xl font-black tracking-tight text-white">{value}</h2>
               <div className="mt-5 h-1.5 rounded-full bg-white/10">
-                <div className="h-1.5 w-1/3 rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" />
+                <div className="h-1.5 w-1/3 rounded-full bg-linear-to-r from-violet-500 to-cyan-400" />
               </div>
             </article>
           ))}
@@ -76,7 +76,7 @@ export default function Dashboard() {
             </div>
           </article>
 
-          <aside className="rounded-[28px] border border-white/10 bg-gradient-to-br from-violet-500/15 to-cyan-400/10 p-6 shadow-2xl shadow-black/20">
+          <aside className="rounded-[1.75rem] border border-white/10 bg-linear-to-br from-violet-500/15 to-cyan-400/10 p-6 shadow-2xl shadow-black/20">
             <p className="text-xs uppercase tracking-[0.3em] text-white/60">Quick actions</p>
             <div className="mt-4 space-y-3">
               <Link href="/users" className="block rounded-2xl border border-white/10 bg-white/6 px-4 py-3 font-semibold text-white transition hover:bg-white/10">

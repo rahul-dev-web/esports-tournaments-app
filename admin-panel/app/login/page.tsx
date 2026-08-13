@@ -43,10 +43,10 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(139,92,246,0.25),_transparent_35%),linear-gradient(180deg,#050816_0%,#0b1020_50%,#050816_100%)] text-white flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(139,92,246,0.25),transparent_35%),linear-gradient(180deg,#050816_0%,#0b1020_50%,#050816_100%)] text-white flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-purple-950/40 backdrop-blur-xl">
         <div className="mb-8 flex items-center gap-3">
-          <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-400 p-3">
+          <div className="rounded-2xl bg-linear-to-br from-purple-500 to-cyan-400 p-3">
             <Trophy className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -69,7 +69,7 @@ export default function LoginPage() {
           type="button"
           onClick={handleLogin}
           disabled={loading}
-          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-purple-500 to-cyan-400 px-4 py-3 font-semibold text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex w-full items-center justify-center gap-3 rounded-2xl bg-linear-to-r from-purple-500 to-cyan-400 px-4 py-3 font-semibold text-white transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
         >
           {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Shield className="h-5 w-5" />}
           Continue with Google
