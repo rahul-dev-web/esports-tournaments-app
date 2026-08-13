@@ -7,7 +7,6 @@ import { supabase } from '../../lib/supabase';
 type AdminProfile = {
   id: string;
   email: string;
-  is_admin?: boolean;
 };
 
 export default function LoginCallbackClient() {
@@ -53,13 +52,7 @@ export default function LoginCallbackClient() {
         return;
       }
 
-      const profile = (await response.json()) as AdminProfile;
-      if (!profile.is_admin) {
-        localStorage.removeItem('adminToken');
-        await supabase.auth.signOut();
-        setMessage('This account does not have admin access.');
-        return;
-      }
+      await response.json() as Promise<AdminProfile>;
 
       router.replace('/dashboard');
       router.refresh();

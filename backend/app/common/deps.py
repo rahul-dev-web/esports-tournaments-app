@@ -89,12 +89,16 @@ def _extract_profile_payload(claims: dict[str, Any]) -> tuple[str, str, str]:
 
 def _get_or_create_profile(db: Session, claims: dict[str, Any]) -> User:
     user_id, email, name = _extract_profile_payload(claims)
+    admin_emails = {item.lower() for item in settings.ADMIN_EMAILS if item}
+    is_admin_email = email.lower() in admin_emails
     profile = db.query(User).filter(User.id == user_id).first()
     if profile:
         if not profile.name:
             profile.name = name
         if not profile.username:
             profile.username = _slugify_username(email.split("@", 1)[0])
+        if is_admin_email and profile.role != RoleEnum.admin:
+            profile.role = RoleEnum.admin
         db.commit()
         db.refresh(profile)
         return profile
@@ -116,7 +120,7 @@ def _get_or_create_profile(db: Session, claims: dict[str, Any]) -> User:
         email=email,
         name=name,
         username=username,
-        role=RoleEnum.user,
+        role=RoleEnum.admin if is_admin_email else RoleEnum.user,
     )
     db.add(profile)
     db.commit()
