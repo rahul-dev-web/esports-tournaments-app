@@ -95,8 +95,6 @@ def _get_or_create_profile(db: Session, claims: dict[str, Any]) -> User:
             profile.name = name
         if not profile.username:
             profile.username = _slugify_username(email.split("@", 1)[0])
-        if claims.get("role") == "service_role":
-            profile.role = RoleEnum.admin
         db.commit()
         db.refresh(profile)
         return profile
@@ -118,7 +116,7 @@ def _get_or_create_profile(db: Session, claims: dict[str, Any]) -> User:
         email=email,
         name=name,
         username=username,
-        role=RoleEnum.admin if claims.get("role") == "service_role" else RoleEnum.user,
+        role=RoleEnum.user,
     )
     db.add(profile)
     db.commit()
@@ -143,6 +141,7 @@ def current_user_id(user: User = Depends(current_user)) -> str:
 
 
 def require_admin(user: User = Depends(current_user)) -> str:
-    if user.role != RoleEnum.admin:
+    admin_emails = {email.lower() for email in settings.ADMIN_EMAILS if email}
+    if user.email.lower() not in admin_emails:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user.id

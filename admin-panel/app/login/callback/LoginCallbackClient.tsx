@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase';
 type AdminProfile = {
   id: string;
   email: string;
-  role?: string;
+  is_admin?: boolean;
 };
 
 export default function LoginCallbackClient() {
@@ -40,13 +40,12 @@ export default function LoginCallbackClient() {
 
       localStorage.setItem('adminToken', token);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ;
-      const response = await fetch(`${apiBaseUrl}/auth/me`, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+      const response = await fetch(`${apiBaseUrl}/admin/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      console.log('apiBaseUrl:', apiBaseUrl);
 
       if (!response.ok) {
         localStorage.removeItem('adminToken');
@@ -55,7 +54,7 @@ export default function LoginCallbackClient() {
       }
 
       const profile = (await response.json()) as AdminProfile;
-      if (profile.role !== 'admin') {
+      if (!profile.is_admin) {
         localStorage.removeItem('adminToken');
         await supabase.auth.signOut();
         setMessage('This account does not have admin access.');

@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Any, Optional, cast
 from datetime import datetime
-from app.common.deps import require_admin, current_user_id
+from app.common.deps import require_admin, current_user, current_user_id
 from app.core.database import get_db
 from app.core.models import (
     User, Team, TeamMember, Tournament, Registration, Settings,
@@ -21,6 +21,20 @@ import io
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["admin"])
+
+
+@router.get("/me")
+async def admin_me(
+    user: User = Depends(current_user),
+    _: str = Depends(require_admin),
+):
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "username": user.username,
+        "is_admin": True,
+    }
 
 # ============================================================================
 # SETTINGS MANAGEMENT (Priority 1 - CRITICAL!)
