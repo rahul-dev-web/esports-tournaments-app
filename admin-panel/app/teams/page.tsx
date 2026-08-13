@@ -10,15 +10,23 @@ type Team = {
   name: string;
   game: string;
   captain_id: string;
-  member_ids?: string[];
+  member_count: number;
   is_private: boolean;
   logo_url?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
 
+type TeamsResponse = {
+  total: number;
+  skip: number;
+  limit: number;
+  teams: Team[];
+};
+
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [totalTeams, setTotalTeams] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +40,44 @@ export default function TeamsPage() {
 
       const data = await teamsAPI.getAll(page, limit);
 
-      setTeams(Array.isArray(data) ? data : []);
+      /*
+       * Backend response:
+       *
+       * {
+       *   total: number,
+       *   skip: number,
+       *   limit: number,
+       *   teams: [...]
+       * }
+       *
+       * Keep a small compatibility fallback in case the API
+       * ever returns a raw array.
+       */
+      if (Array.isArray(data)) {
+        setTeams(data);
+        setTotalTeams(data.length);
+        return;
+      }
+
+      const response = data as TeamsResponse;
+
+      const teamList = Array.isArray(response?.teams)
+        ? response.teams
+        : [];
+
+      setTeams(teamList);
+      setTotalTeams(
+        typeof response?.total === 'number'
+          ? response.total
+          : teamList.length
+      );
     } catch (err) {
       console.error('Error fetching teams:', err);
 
       setError('Failed to load teams. Please try again.');
 
       setTeams([]);
+      setTotalTeams(0);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -72,6 +111,11 @@ export default function TeamsPage() {
       year: 'numeric',
     });
   };
+
+  const totalPages = Math.max(1, Math.ceil(totalTeams / limit));
+
+  const hasNextPage = page < totalPages;
+  const hasPreviousPage = page > 1;
 
   return (
     <Layout
@@ -118,6 +162,19 @@ export default function TeamsPage() {
           </button>
         </div>
       )}
+
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          {totalTeams} {totalTeams === 1 ? 'team' : 'teams'} total
+        </p>
+
+        {totalTeams > 0 && (
+          <p className="text-sm text-gray-500">
+            Showing {(page - 1) * limit + 1}–
+            {Math.min(page * limit, totalTeams)}
+          </p>
+        )}
+      </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -184,9 +241,10 @@ export default function TeamsPage() {
                 </tr>
               ) : (
                 teams.map((team) => {
-                  const memberCount = Array.isArray(team.member_ids)
-                    ? team.member_ids.length
-                    : 0;
+                  const memberCount =
+                    typeof team.member_count === 'number'
+                      ? team.member_count
+                      : 0;
 
                   return (
                     <tr
@@ -271,7 +329,7 @@ export default function TeamsPage() {
 
       <div className="mt-6 flex items-center justify-between">
         <p className="text-sm text-gray-600">
-          Page {page}
+          Page {page} of {totalPages}
         </p>
 
         <div className="flex gap-2">
@@ -280,7 +338,7 @@ export default function TeamsPage() {
             onClick={() =>
               setPage((current) => Math.max(1, current - 1))
             }
-            disabled={page === 1 || loading}
+            disabled={!hasPreviousPage || loading}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Previous
@@ -291,7 +349,7 @@ export default function TeamsPage() {
             onClick={() =>
               setPage((current) => current + 1)
             }
-            disabled={loading || teams.length < limit}
+            disabled={!hasNextPage || loading}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Next
