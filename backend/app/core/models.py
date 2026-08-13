@@ -44,7 +44,7 @@ class TimestampMixin:
 
 class User(TimestampMixin, Base):
     __tablename__ = "profiles"
-    id: Mapped[str] = mapped_column(GUID(), ForeignKey("auth.users.id", ondelete="CASCADE"), primary_key=True)
+    id: Mapped[str] = mapped_column(GUID(), primary_key=True)
     email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(100), default="", nullable=False)
     username: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
