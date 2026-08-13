@@ -40,7 +40,7 @@ export default function LoginCallbackClient() {
 
       localStorage.setItem('adminToken', token);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ;
       const response = await fetch(`${apiBaseUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
