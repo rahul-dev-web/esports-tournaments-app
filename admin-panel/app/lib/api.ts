@@ -19,7 +19,10 @@ const apiClient = axios.create({
 
 // Add auth token to requests
 apiClient.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('adminToken') : null;
+  const token =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('adminToken')
+      : null;
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -32,7 +35,10 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (typeof window !== 'undefined' && error.response?.status === 401) {
+    if (
+      typeof window !== 'undefined' &&
+      error.response?.status === 401
+    ) {
       // Redirect to login
       window.location.href = '/login';
     }
@@ -61,13 +67,18 @@ export const usersAPI = {
   },
 
   async update(userId: string, data: any) {
-    const response = await apiClient.patch(`/admin/users/${userId}`, data);
+    const response = await apiClient.patch(
+      `/admin/users/${userId}`,
+      data
+    );
 
     return response.data;
   },
 
   async search(query: string) {
-    const response = await apiClient.get(`/admin/users?search=${query}`);
+    const response = await apiClient.get(
+      `/admin/users?search=${encodeURIComponent(query)}`
+    );
 
     return response.data.users ?? response.data;
   },
@@ -82,7 +93,7 @@ export const tournamentsAPI = {
     let url = `/tournaments?skip=${(page - 1) * limit}&limit=${limit}`;
 
     if (status) {
-      url += `&status=${status}`;
+      url += `&status=${encodeURIComponent(status)}`;
     }
 
     const response = await apiClient.get(url);
@@ -126,7 +137,7 @@ export const tournamentsAPI = {
 
   async changeStatus(tournamentId: string, status: string) {
     const response = await apiClient.patch(
-      `/tournaments/${tournamentId}/status/${status}`
+      `/tournaments/${tournamentId}/status/${encodeURIComponent(status)}`
     );
 
     return response.data;
@@ -138,9 +149,30 @@ export const tournamentsAPI = {
 // ============================================================
 
 export const teamsAPI = {
+  /**
+   * Admin Teams Listing
+   *
+   * This function is used by the Admin Teams page.
+   *
+   * Backend endpoint:
+   * GET /api/admin/teams
+   *
+   * Backend response:
+   * {
+   *   total: number,
+   *   skip: number,
+   *   limit: number,
+   *   teams: [...]
+   * }
+   *
+   * The Admin Teams page passes page/limit, so this function
+   * converts the page number into the backend's skip value.
+   */
   async getAll(page = 1, limit = 10) {
+    const skip = Math.max(0, (page - 1) * limit);
+
     const response = await apiClient.get(
-      `/teams?skip=${(page - 1) * limit}&limit=${limit}`
+      `/admin/teams?skip=${skip}&limit=${limit}`
     );
 
     return response.data;
@@ -229,7 +261,7 @@ export const adminAPI = {
 
   async getSetting(key: string) {
     const response = await apiClient.get(
-      `/admin/settings/${key}`
+      `/admin/settings/${encodeURIComponent(key)}`
     );
 
     return response.data;
@@ -237,7 +269,7 @@ export const adminAPI = {
 
   async updateSetting(key: string, data: any) {
     const response = await apiClient.patch(
-      `/admin/settings/${key}`,
+      `/admin/settings/${encodeURIComponent(key)}`,
       data
     );
 
@@ -288,7 +320,7 @@ export const adminAPI = {
     let url = '/admin/registrations/export';
 
     if (tournamentId) {
-      url += `?tournament_id=${tournamentId}`;
+      url += `?tournament_id=${encodeURIComponent(tournamentId)}`;
     }
 
     const response = await apiClient.get(url);
@@ -305,7 +337,7 @@ export const adminAPI = {
     status: string
   ) {
     const response = await apiClient.patch(
-      `/admin/tournaments/${tournamentId}/status/${status}`
+      `/admin/tournaments/${tournamentId}/status/${encodeURIComponent(status)}`
     );
 
     return response.data;
@@ -335,7 +367,7 @@ export const adminAPI = {
     let url = `/admin/teams?skip=${skip}&limit=${limit}`;
 
     if (game) {
-      url += `&game=${game}`;
+      url += `&game=${encodeURIComponent(game)}`;
     }
 
     const response = await apiClient.get(url);
