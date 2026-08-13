@@ -46,6 +46,7 @@ export default function LoginCallbackClient() {
           Authorization: `Bearer ${token}`,
         },
       });
+      console.log('apiBaseUrl:', apiBaseUrl);
 
       if (!response.ok) {
         localStorage.removeItem('adminToken');
