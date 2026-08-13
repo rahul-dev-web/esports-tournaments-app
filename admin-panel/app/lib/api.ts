@@ -61,7 +61,9 @@ export const usersAPI = {
   },
 
   async getOne(userId: string) {
-    const response = await apiClient.get(`/admin/users/${userId}`);
+    const response = await apiClient.get(
+      `/admin/users/${userId}`
+    );
 
     return response.data;
   },
