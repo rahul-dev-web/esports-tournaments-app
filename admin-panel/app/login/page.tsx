@@ -55,9 +55,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="mb-6 text-sm leading-6 text-white/70">
-          Use your Google account. Only users with admin role in Supabase can access the control panel.
-        </p>
+       <p className="mb-6 text-sm leading-6 text-white/70">
+  Sign in with your Google account. Only the authorized admin email can access the control panel.
+</p>
 
         {error ? (
           <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-100">
@@ -75,9 +75,9 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-white/60">
-          Make sure the admin user exists in Supabase with <span className="text-white">role = admin</span>.
-        </div>
+       <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-white/60">
+  Only the Google account configured as the admin email in the backend can access this panel.
+</div>
       </div>
     </main>
   );
