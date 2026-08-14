@@ -184,9 +184,24 @@ async def dashboard(
     db: Session = Depends(get_db),
 ):
     """
-    Get dashboard statistics.
+    Get dashboard statistics and recent platform activities.
 
     GET /api/admin/dashboard
+
+    Dashboard statistics:
+    - total_users
+    - total_teams
+    - total_registrations
+    - active_tournaments
+    - pending_registrations
+
+    Recent activities are generated from real database records:
+    - profiles.created_at
+    - teams.created_at
+    - tournaments.created_at
+    - tournament_registrations.created_at
+
+    The latest 5 activities are returned in descending chronological order.
     """
 
     total_users = db.query(func.count(User.id)).scalar() or 0
@@ -215,12 +230,151 @@ async def dashboard(
         or 0
     )
 
+    # ------------------------------------------------------------------------
+    # RECENT ACTIVITIES
+    #
+    # Fetch a small recent window from each entity first, then combine the
+    # results in Python. This avoids loading entire tables just to construct
+    # the dashboard activity feed.
+    # ------------------------------------------------------------------------
+
+    recent_activities: list[dict[str, Any]] = []
+
+    # ------------------------------------------------------------------------
+    # Recent Users
+    # ------------------------------------------------------------------------
+
+    recent_users = (
+        db.query(User)
+        .order_by(User.created_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    for user in recent_users:
+        display_name = (
+            user.name.strip()
+            if user.name and user.name.strip()
+            else user.username
+        )
+
+        if not display_name:
+            display_name = user.email
+
+        recent_activities.append(
+            {
+                "id": f"user:{user.id}",
+                "type": "user",
+                "title": "New User Joined",
+                "description": display_name,
+                "created_at": user.created_at,
+            }
+        )
+
+    # ------------------------------------------------------------------------
+    # Recent Teams
+    # ------------------------------------------------------------------------
+
+    recent_teams = (
+        db.query(Team)
+        .order_by(Team.created_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    for team in recent_teams:
+        recent_activities.append(
+            {
+                "id": f"team:{team.id}",
+                "type": "team",
+                "title": "Team Created",
+                "description": team.name,
+                "created_at": team.created_at,
+            }
+        )
+
+    # ------------------------------------------------------------------------
+    # Recent Tournaments
+    # ------------------------------------------------------------------------
+
+    recent_tournaments = (
+        db.query(Tournament)
+        .order_by(Tournament.created_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    for tournament in recent_tournaments:
+        recent_activities.append(
+            {
+                "id": f"tournament:{tournament.id}",
+                "type": "tournament",
+                "title": "New Tournament Created",
+                "description": tournament.name,
+                "created_at": tournament.created_at,
+            }
+        )
+
+    # ------------------------------------------------------------------------
+    # Recent Registrations
+    #
+    # Registration contains both team_id and tournament_id, so we explicitly
+    # load the related names for a meaningful activity description.
+    # ------------------------------------------------------------------------
+
+    recent_registrations = (
+        db.query(Registration, Team, Tournament)
+        .join(
+            Team,
+            Team.id == Registration.team_id,
+        )
+        .join(
+            Tournament,
+            Tournament.id == Registration.tournament_id,
+        )
+        .order_by(Registration.created_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    for registration, team, tournament in recent_registrations:
+        team_name = team.name if team else "Unknown Team"
+        tournament_name = (
+            tournament.name
+            if tournament
+            else "Unknown Tournament"
+        )
+
+        recent_activities.append(
+            {
+                "id": f"registration:{registration.id}",
+                "type": "registration",
+                "title": "Team Registered",
+                "description": (
+                    f"{team_name} for {tournament_name}"
+                ),
+                "created_at": registration.created_at,
+            }
+        )
+
+    # ------------------------------------------------------------------------
+    # Combine all activity types, newest first, and keep only the latest 5.
+    # ------------------------------------------------------------------------
+
+    recent_activities.sort(
+        key=lambda activity: activity["created_at"],
+        reverse=True,
+    )
+
+    recent_activities = recent_activities[:5]
+
     return {
         "total_users": total_users,
         "total_teams": total_teams,
         "total_registrations": total_registrations,
         "active_tournaments": active_tournaments,
         "pending_registrations": pending_registrations,
+        "recent_activities": recent_activities,
     }
 
 
