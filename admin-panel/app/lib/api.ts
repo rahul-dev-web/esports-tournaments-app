@@ -39,7 +39,6 @@ apiClient.interceptors.response.use(
       typeof window !== 'undefined' &&
       error.response?.status === 401
     ) {
-      // Redirect to login
       window.location.href = '/login';
     }
 
@@ -154,8 +153,6 @@ export const teamsAPI = {
   /**
    * Admin Teams Listing
    *
-   * This function is used by the Admin Teams page.
-   *
    * Backend endpoint:
    * GET /api/admin/teams
    *
@@ -166,9 +163,6 @@ export const teamsAPI = {
    *   limit: number,
    *   teams: [...]
    * }
-   *
-   * The Admin Teams page passes page/limit, so this function
-   * converts the page number into the backend's skip value.
    */
   async getAll(page = 1, limit = 10) {
     const skip = Math.max(0, (page - 1) * limit);
@@ -250,6 +244,45 @@ export const registrationsAPI = {
 
 export const adminAPI = {
   // ----------------------------------------------------------
+  // DASHBOARD
+  // ----------------------------------------------------------
+
+  /**
+   * Get real dashboard statistics from the backend.
+   *
+   * Backend endpoint:
+   * GET /api/admin/dashboard
+   *
+   * Backend response:
+   * {
+   *   total_users: number,
+   *   total_teams: number,
+   *   total_registrations: number,
+   *   active_tournaments: number,
+   *   pending_registrations: number
+   * }
+   */
+  async getDashboard() {
+    const response = await apiClient.get(
+      '/admin/dashboard'
+    );
+
+    return response.data;
+  },
+
+  // ----------------------------------------------------------
+  // ADMIN PROFILE
+  // ----------------------------------------------------------
+
+  async getMe() {
+    const response = await apiClient.get(
+      '/admin/me'
+    );
+
+    return response.data;
+  },
+
+  // ----------------------------------------------------------
   // SETTINGS
   // ----------------------------------------------------------
 
@@ -282,6 +315,44 @@ export const adminAPI = {
   // USER MANAGEMENT
   // ----------------------------------------------------------
 
+  async getUsers(
+    page = 1,
+    limit = 10,
+    role?: string,
+    search?: string
+  ) {
+    let url = `/admin/users?skip=${(page - 1) * limit}&limit=${limit}`;
+
+    if (role) {
+      url += `&role=${encodeURIComponent(role)}`;
+    }
+
+    if (search) {
+      url += `&search=${encodeURIComponent(search)}`;
+    }
+
+    const response = await apiClient.get(url);
+
+    return response.data;
+  },
+
+  async getUser(userId: string) {
+    const response = await apiClient.get(
+      `/admin/users/${userId}`
+    );
+
+    return response.data;
+  },
+
+  async updateUser(userId: string, data: any) {
+    const response = await apiClient.patch(
+      `/admin/users/${userId}`,
+      data
+    );
+
+    return response.data;
+  },
+
   async suspendUser(userId: string) {
     const response = await apiClient.patch(
       `/admin/users/${userId}/suspend`
@@ -301,6 +372,27 @@ export const adminAPI = {
   // ----------------------------------------------------------
   // REGISTRATION MANAGEMENT
   // ----------------------------------------------------------
+
+  async getRegistrations(
+    page = 1,
+    limit = 10,
+    status?: string,
+    tournamentId?: string
+  ) {
+    let url = `/admin/registrations?skip=${(page - 1) * limit}&limit=${limit}`;
+
+    if (status) {
+      url += `&status=${encodeURIComponent(status)}`;
+    }
+
+    if (tournamentId) {
+      url += `&tournament_id=${encodeURIComponent(tournamentId)}`;
+    }
+
+    const response = await apiClient.get(url);
+
+    return response.data;
+  },
 
   async approveRegistration(registrationId: string) {
     const response = await apiClient.patch(
@@ -385,5 +477,9 @@ export const adminAPI = {
     return response.data;
   },
 };
+
+// ============================================================
+// DEFAULT EXPORT
+// ============================================================
 
 export default apiClient;
