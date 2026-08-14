@@ -17,8 +17,65 @@ type RegistrationPolicy =
   | 'individual_ads'
   | 'captain_ads';
 
+type RecentActivity = {
+  id: string;
+  type: 'user' | 'team' | 'tournament' | 'registration' | string;
+  title: string;
+  description: string;
+  created_at: string;
+};
+
 const DEFAULT_REGISTRATION_POLICY: RegistrationPolicy =
   'individual_ads';
+
+function formatRelativeTime(value: string): string {
+  const createdAt = new Date(value).getTime();
+
+  if (Number.isNaN(createdAt)) {
+    return 'Recently';
+  }
+
+  const now = Date.now();
+  const diffMs = Math.max(0, now - createdAt);
+
+  const seconds = Math.floor(diffMs / 1000);
+
+  if (seconds < 60) {
+    return 'Just now';
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 60) {
+    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 7) {
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  }
+
+  const weeks = Math.floor(days / 7);
+
+  if (weeks < 5) {
+    return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+  }
+
+  const date = new Date(value);
+
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -27,6 +84,9 @@ export default function DashboardPage() {
     total_registrations: 0,
     active_tournaments: 0,
   });
+
+  const [recentActivities, setRecentActivities] =
+    useState<RecentActivity[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +138,23 @@ export default function DashboardPage() {
           ),
         });
 
+        const activities = Array.isArray(
+          dashboardData?.recent_activities
+        )
+          ? dashboardData.recent_activities
+          : [];
+
+        setRecentActivities(
+          activities.filter(
+            (activity: RecentActivity) =>
+              activity &&
+              typeof activity.id === 'string' &&
+              typeof activity.title === 'string' &&
+              typeof activity.description === 'string' &&
+              typeof activity.created_at === 'string'
+          )
+        );
+
         const backendPolicy =
           settingData?.value;
 
@@ -103,20 +180,12 @@ export default function DashboardPage() {
           return;
         }
 
-        /*
-         * Dashboard statistics and settings are loaded together.
-         * If the settings request fails, the dashboard itself
-         * should still show a useful error state rather than
-         * silently pretending the setting was loaded.
-         */
         setError(
           'Failed to load dashboard data. Please try again.'
         );
 
-        /*
-         * Keep the UI usable with the backend-defined default
-         * if the setting cannot currently be retrieved.
-         */
+        setRecentActivities([]);
+
         setRegistrationPolicy(
           DEFAULT_REGISTRATION_POLICY
         );
@@ -180,11 +249,6 @@ export default function DashboardPage() {
         err
       );
 
-      /*
-       * Roll back the UI if the backend update fails.
-       * This prevents the dropdown from showing a value
-       * that was never actually saved.
-       */
       setRegistrationPolicy(previousPolicy);
 
       setPolicyError(
@@ -359,58 +423,55 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-8 rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
-          <h2 className="text-lg font-bold text-white">
-            Recent Activities
-          </h2>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-white">
+                Recent Activities
+              </h2>
+
+              <p className="mt-1 text-sm text-white/50">
+                Latest activity from the platform
+              </p>
+            </div>
+
+            {loading ? (
+              <span className="text-xs text-white/50">
+                Loading...
+              </span>
+            ) : null}
+          </div>
 
           <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div>
-                <p className="font-medium text-white">
-                  New Tournament Created
-                </p>
-
-                <p className="text-sm text-white/55">
-                  Summer Championship
+            {!loading && recentActivities.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center">
+                <p className="text-sm text-white/60">
+                  No recent activities
                 </p>
               </div>
+            ) : null}
 
-              <span className="text-xs text-white/50">
-                2 hours ago
-              </span>
-            </div>
+            {recentActivities.map((activity) => (
+              <div
+                key={activity.id}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-white">
+                    {activity.title}
+                  </p>
 
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div>
-                <p className="font-medium text-white">
-                  Team Registered
-                </p>
+                  <p className="truncate text-sm text-white/55">
+                    {activity.description}
+                  </p>
+                </div>
 
-                <p className="text-sm text-white/55">
-                  Team Alpha for Tournament
-                </p>
+                <span className="shrink-0 text-xs text-white/50">
+                  {formatRelativeTime(
+                    activity.created_at
+                  )}
+                </span>
               </div>
-
-              <span className="text-xs text-white/50">
-                5 hours ago
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <div>
-                <p className="font-medium text-white">
-                  New User Joined
-                </p>
-
-                <p className="text-sm text-white/55">
-                  5 new players registered
-                </p>
-              </div>
-
-              <span className="text-xs text-white/50">
-                1 day ago
-              </span>
-            </div>
+            ))}
           </div>
         </div>
       </Layout>
