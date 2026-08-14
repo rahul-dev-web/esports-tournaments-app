@@ -53,11 +53,35 @@ export interface Registration {
   slot?: number;
 }
 
+/**
+ * A single real activity displayed in the admin dashboard.
+ *
+ * These activities come from backend database records such as:
+ * - profiles
+ * - teams
+ * - tournaments
+ * - tournament_registrations
+ */
+export interface DashboardActivity {
+  id: string;
+  type:
+    | 'user'
+    | 'team'
+    | 'tournament'
+    | 'registration'
+    | string;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
 export interface DashboardStats {
   total_users: number;
   total_teams: number;
   total_registrations: number;
   active_tournaments: number;
+  pending_registrations?: number;
+  recent_activities: DashboardActivity[];
 }
 
 export interface CreateTournamentRequest {
