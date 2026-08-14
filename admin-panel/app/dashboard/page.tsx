@@ -13,6 +13,13 @@ import Link from 'next/link';
 import { DashboardStats } from '../lib/types';
 import { adminAPI } from '../lib/api';
 
+type RegistrationPolicy =
+  | 'individual_ads'
+  | 'captain_ads';
+
+const DEFAULT_REGISTRATION_POLICY: RegistrationPolicy =
+  'individual_ads';
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     total_users: 0,
@@ -24,40 +31,71 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [registrationPolicy, setRegistrationPolicy] =
+    useState<RegistrationPolicy>(
+      DEFAULT_REGISTRATION_POLICY
+    );
+
+  const [policyLoading, setPolicyLoading] = useState(true);
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyMessage, setPolicyMessage] = useState<
+    string | null
+  >(null);
+  const [policyError, setPolicyError] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
     let mounted = true;
 
-    const fetchDashboardStats = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        /*
-         * Admin dashboard uses the dedicated backend endpoint:
-         *
-         * GET /api/admin/dashboard
-         *
-         * The API client automatically attaches the admin JWT token.
-         */
-        const data = await adminAPI.getDashboard();
+        const [dashboardData, settingData] =
+          await Promise.all([
+            adminAPI.getDashboard(),
+            adminAPI.getSetting('registration_policy'),
+          ]);
 
         if (!mounted) {
           return;
         }
 
         setStats({
-          total_users: Number(data?.total_users ?? 0),
-          total_teams: Number(data?.total_teams ?? 0),
+          total_users: Number(
+            dashboardData?.total_users ?? 0
+          ),
+          total_teams: Number(
+            dashboardData?.total_teams ?? 0
+          ),
           total_registrations: Number(
-            data?.total_registrations ?? 0
+            dashboardData?.total_registrations ?? 0
           ),
           active_tournaments: Number(
-            data?.active_tournaments ?? 0
+            dashboardData?.active_tournaments ?? 0
           ),
         });
+
+        const backendPolicy =
+          settingData?.value;
+
+        if (
+          backendPolicy === 'individual_ads' ||
+          backendPolicy === 'captain_ads'
+        ) {
+          setRegistrationPolicy(backendPolicy);
+        } else {
+          setRegistrationPolicy(
+            DEFAULT_REGISTRATION_POLICY
+          );
+        }
+
+        setPolicyError(null);
       } catch (err) {
         console.error(
-          'Error fetching admin dashboard stats:',
+          'Error fetching admin dashboard data:',
           err
         );
 
@@ -65,22 +103,97 @@ export default function DashboardPage() {
           return;
         }
 
+        /*
+         * Dashboard statistics and settings are loaded together.
+         * If the settings request fails, the dashboard itself
+         * should still show a useful error state rather than
+         * silently pretending the setting was loaded.
+         */
         setError(
           'Failed to load dashboard data. Please try again.'
+        );
+
+        /*
+         * Keep the UI usable with the backend-defined default
+         * if the setting cannot currently be retrieved.
+         */
+        setRegistrationPolicy(
+          DEFAULT_REGISTRATION_POLICY
+        );
+
+        setPolicyError(
+          'Unable to load the current registration policy.'
         );
       } finally {
         if (mounted) {
           setLoading(false);
+          setPolicyLoading(false);
         }
       }
     };
 
-    fetchDashboardStats();
+    fetchDashboardData();
 
     return () => {
       mounted = false;
     };
   }, []);
+
+  const handleRegistrationPolicyChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const newPolicy =
+      event.target.value as RegistrationPolicy;
+
+    if (
+      newPolicy !== 'individual_ads' &&
+      newPolicy !== 'captain_ads'
+    ) {
+      return;
+    }
+
+    const previousPolicy = registrationPolicy;
+
+    setRegistrationPolicy(newPolicy);
+    setPolicySaving(true);
+    setPolicyMessage(null);
+    setPolicyError(null);
+
+    try {
+      await adminAPI.updateSetting(
+        'registration_policy',
+        {
+          key: 'registration_policy',
+          value: newPolicy,
+          description:
+            'Registration ad policy used for new tournament registrations.',
+          value_type: 'string',
+        }
+      );
+
+      setPolicyMessage(
+        'Registration policy updated successfully.'
+      );
+    } catch (err) {
+      console.error(
+        'Error updating registration policy:',
+        err
+      );
+
+      /*
+       * Roll back the UI if the backend update fails.
+       * This prevents the dropdown from showing a value
+       * that was never actually saved.
+       */
+      setRegistrationPolicy(previousPolicy);
+
+      setPolicyError(
+        'Failed to update registration policy. Please try again.'
+      );
+    } finally {
+      setPolicySaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(138,92,255,0.18),_transparent_30%),linear-gradient(180deg,#08101f_0%,#0b1328_55%,#050814_100%)] text-white">
@@ -94,7 +207,9 @@ export default function DashboardPage() {
 
             <button
               type="button"
-              onClick={() => window.location.reload()}
+              onClick={() =>
+                window.location.reload()
+              }
               className="rounded-xl border border-red-300/20 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-100 transition hover:bg-red-400/20"
             >
               Retry
@@ -105,28 +220,44 @@ export default function DashboardPage() {
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
           <StatsCard
             label="Total Users"
-            value={loading ? '-' : stats.total_users}
+            value={
+              loading
+                ? '-'
+                : stats.total_users
+            }
             trend={12}
             icon={<Users size={24} />}
           />
 
           <StatsCard
             label="Total Teams"
-            value={loading ? '-' : stats.total_teams}
+            value={
+              loading
+                ? '-'
+                : stats.total_teams
+            }
             trend={8}
             icon={<Users2 size={24} />}
           />
 
           <StatsCard
             label="Registrations"
-            value={loading ? '-' : stats.total_registrations}
+            value={
+              loading
+                ? '-'
+                : stats.total_registrations
+            }
             trend={15}
             icon={<FileText size={24} />}
           />
 
           <StatsCard
             label="Active Tournaments"
-            value={loading ? '-' : stats.active_tournaments}
+            value={
+              loading
+                ? '-'
+                : stats.active_tournaments
+            }
             trend={5}
             icon={<Trophy size={24} />}
           />
@@ -163,18 +294,36 @@ export default function DashboardPage() {
           </div>
 
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur-xl">
-            <h2 className="text-lg font-bold text-white">
-              Registration Policy
-            </h2>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  Registration Policy
+                </h2>
 
-            <p className="mt-3 text-sm text-white/70">
-              Choose whether tournaments use individual player ads
-              or captain ads for registration.
-            </p>
+                <p className="mt-3 text-sm text-white/70">
+                  Choose whether tournaments use
+                  individual player ads or captain ads
+                  for registration.
+                </p>
+              </div>
+
+              {policySaving ? (
+                <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-200">
+                  Saving...
+                </span>
+              ) : null}
+            </div>
 
             <select
-              defaultValue="individual_ads"
-              className="mt-4 w-full rounded-2xl border border-white/10 bg-[#0d152b] px-4 py-3 text-white outline-none ring-0 focus:border-cyan-400"
+              value={registrationPolicy}
+              onChange={
+                handleRegistrationPolicyChange
+              }
+              disabled={
+                policyLoading ||
+                policySaving
+              }
+              className="mt-4 w-full rounded-2xl border border-white/10 bg-[#0d152b] px-4 py-3 text-white outline-none ring-0 transition focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <option value="individual_ads">
                 Individual Ads (each player watches 1)
@@ -185,9 +334,27 @@ export default function DashboardPage() {
               </option>
             </select>
 
-            <p className="mt-3 text-xs text-white/50">
-              Changes apply to new registrations only
-            </p>
+            {policyLoading ? (
+              <p className="mt-3 text-xs text-white/50">
+                Loading current policy...
+              </p>
+            ) : policySaving ? (
+              <p className="mt-3 text-xs text-cyan-200/70">
+                Saving policy to the server...
+              </p>
+            ) : policyMessage ? (
+              <p className="mt-3 text-xs text-emerald-300">
+                {policyMessage}
+              </p>
+            ) : policyError ? (
+              <p className="mt-3 text-xs text-red-300">
+                {policyError}
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-white/50">
+                Changes apply to new registrations only
+              </p>
+            )}
           </div>
         </div>
 
