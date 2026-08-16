@@ -7,6 +7,8 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config.dart';
 import 'core/router.dart';
+import 'core/services/api_client.dart';
+import 'core/services/push_notification_service.dart';
 import 'core/theme/app_theme.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
@@ -29,6 +31,14 @@ FirebaseOptions? _firebaseWebOptions() {
     measurementId: firebaseMeasurementId.isNotEmpty ? firebaseMeasurementId : null,
   );
 }
+
+final pushNotificationServiceProvider = Provider<PushNotificationService>(
+  (ref) {
+    final service = PushNotificationService(ApiClient());
+    ref.onDispose(service.dispose);
+    return service;
+  },
+);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,14 +64,26 @@ Future<void> main() async {
   } else {
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    await FirebaseMessaging.instance.requestPermission();
   }
 
   runApp(const ProviderScope(child: ArenaHubApp()));
 }
 
-class ArenaHubApp extends StatelessWidget {
+class ArenaHubApp extends ConsumerStatefulWidget {
   const ArenaHubApp({super.key});
+
+  @override
+  ConsumerState<ArenaHubApp> createState() => _ArenaHubAppState();
+}
+
+class _ArenaHubAppState extends ConsumerState<ArenaHubApp> {
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb && supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+      ref.read(pushNotificationServiceProvider).initialize();
+    }
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp.router(
