@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Bell, Settings, User } from 'lucide-react';
 
 interface HeaderProps {
@@ -17,12 +18,20 @@ export default function Header({ title, subtitle }: HeaderProps) {
           {subtitle && <p className="mt-0.5 truncate text-xs text-white/60 sm:text-sm">{subtitle}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-4">
-          <button aria-label="Notifications" className="rounded-lg p-2 hover:bg-white/10">
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+            className="rounded-lg p-2 hover:bg-white/10"
+          >
             <Bell size={18} className="text-white/75" />
-          </button>
-          <button aria-label="Settings" className="rounded-lg p-2 hover:bg-white/10">
+          </Link>
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="rounded-lg p-2 hover:bg-white/10"
+          >
             <Settings size={18} className="text-white/75" />
-          </button>
+          </Link>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 shadow-lg shadow-violet-500/20 sm:h-9 sm:w-9">
             <User size={17} className="text-white" />
           </div>
