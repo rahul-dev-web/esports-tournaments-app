@@ -24,10 +24,13 @@ def notify_user(
 ) -> Notification:
     """Create an in-app notification and best-effort FCM push for one user."""
     now = datetime.now(timezone.utc)
+    normalized_data = {str(key): str(value) for key, value in (data or {}).items()}
     notification = Notification(
         user_id=user_id,
         title=title.strip(),
         body=body.strip(),
+        notification_type=notification_type.strip() or "general",
+        data=normalized_data,
         read_at=None,
         created_at=now,
         updated_at=now,
@@ -44,8 +47,8 @@ def notify_user(
     ]
     push_data = {
         "notification_id": notification.id,
-        "type": notification_type,
-        **(data or {}),
+        "type": notification.notification_type,
+        **normalized_data,
     }
     if tokens:
         send_push(tokens, notification.title, notification.body, data=push_data)
