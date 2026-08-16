@@ -90,7 +90,7 @@ class TeamMember(Base):
 class TeamInvitation(TimestampMixin, Base):
     __tablename__ = "team_invitations"
     id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
-    team_id: Mapped[str] = mapped_column(GUID(), ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    team_id: Mapped[str] = mapped_column(GUID(), ForeignKey("teams.id"), index=True)
     sender_id: Mapped[str] = mapped_column(GUID(), ForeignKey("profiles.id"))
     receiver_id: Mapped[str] = mapped_column(GUID(), ForeignKey("profiles.id"))
     status: Mapped[InvitationStatusEnum] = mapped_column(SAEnum(InvitationStatusEnum, name="invitation_status"), default=InvitationStatusEnum.pending, nullable=False)
@@ -196,6 +196,8 @@ class Notification(Base):
     user_id: Mapped[str] = mapped_column(GUID(), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    notification_type: Mapped[str] = mapped_column(String(60), default="general", nullable=False, index=True)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
