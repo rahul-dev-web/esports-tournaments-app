@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/auth_providers.dart';
 import '../../teams/presentation/providers/team_provider.dart';
 import '../../tournaments/data/models/tournament_model.dart';
 import '../data/registration_models.dart';
@@ -8,9 +9,7 @@ import 'registration_provider.dart';
 
 class RegisterTournamentPage extends ConsumerStatefulWidget {
   const RegisterTournamentPage({super.key, required this.tournament});
-
   final TournamentModel tournament;
-
   @override
   ConsumerState<RegisterTournamentPage> createState() => _RegisterTournamentPageState();
 }
@@ -22,95 +21,58 @@ class _RegisterTournamentPageState extends ConsumerState<RegisterTournamentPage>
   @override
   Widget build(BuildContext context) {
     final teams = ref.watch(myTeamsProvider);
+    final currentUserId = ref.watch(currentUserIdProvider);
     return Scaffold(
       backgroundColor: const Color(0xFF070B18),
-      appBar: AppBar(
-        title: const Text('Register Tournament'),
-        backgroundColor: const Color(0xFF070B18),
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Register Tournament'), backgroundColor: const Color(0xFF070B18), foregroundColor: Colors.white),
       body: teams.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _StateMessage(message: error.toString(), onRetry: () => ref.invalidate(myTeamsProvider)),
         data: (items) {
           final eligible = items.where((team) => team['game']?.toString().toLowerCase() == widget.tournament.game.toLowerCase()).toList();
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-            children: [
-              _TournamentHeader(tournament: widget.tournament),
-              const SizedBox(height: 16),
-              _Section(
-                title: 'Choose your team',
-                child: eligible.isEmpty
-                    ? const Text('You do not have a team for this game yet. Create or join a team first.', style: TextStyle(color: Colors.white60, height: 1.45))
-                    : Column(
-                        children: eligible.map((team) {
-                          final id = team['id']?.toString();
-                          final name = team['name']?.toString() ?? 'Unnamed team';
-                          final members = (team['member_ids'] as List?)?.length ?? 0;
-                          final isCaptain = team['captain_id']?.toString() == _currentUserId;
-                          final selected = id != null && id == selectedTeamId;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(18),
-                              onTap: isCaptain && id != null ? () => setState(() => selectedTeamId = id) : null,
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: selected ? const Color(0xFF211A49) : const Color(0xFF10182F),
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: selected ? const Color(0xFF8A5CFF) : Colors.white10),
-                                ),
-                                child: Row(children: [
-                                  Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? const Color(0xFF8A5CFF) : Colors.white38),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                                    const SizedBox(height: 4),
-                                    Text('$members/${widget.tournament.teamSize} players • ${isCaptain ? 'Captain' : 'Not captain'}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                                  ])),
-                                ]),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-              ),
-              const SizedBox(height: 12),
-              _Section(
-                title: 'Registration requirements',
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  _Requirement(icon: Icons.groups_outlined, text: 'Team must have exactly ${widget.tournament.teamSize} players.'),
-                  _Requirement(icon: Icons.sports_esports_outlined, text: 'Team game must match ${widget.tournament.game}.'),
-                  _Requirement(icon: Icons.verified_outlined, text: widget.tournament.policy == RegistrationPolicy.captainAds ? 'Captain completes ${widget.tournament.adsRequired} rewarded ad${widget.tournament.adsRequired == 1 ? '' : 's'}.' : 'Each team member completes one rewarded ad.'),
-                ]),
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: selectedTeamId == null || submitting ? null : _submit,
-                icon: submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.how_to_reg),
-                label: Text(submitting ? 'Starting...' : 'Start registration'),
-              ),
-              const SizedBox(height: 8),
-              const Text('The backend remains the source of truth. Eligibility, duplicate registration, slot availability and registration policy are validated server-side.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
-            ],
-          );
+          return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: [
+            _TournamentHeader(tournament: widget.tournament),
+            const SizedBox(height: 16),
+            _Section(title: 'Choose your team', child: eligible.isEmpty
+                ? const Text('You do not have a team for this game yet. Create or join a team first.', style: TextStyle(color: Colors.white60, height: 1.45))
+                : Column(children: eligible.map((team) {
+                    final id = team['id']?.toString();
+                    final name = team['name']?.toString() ?? 'Unnamed team';
+                    final memberIds = team['member_ids'];
+                    final members = memberIds is List ? memberIds.length : 0;
+                    final isCaptain = team['captain_id']?.toString() == currentUserId;
+                    final selected = id != null && id == selectedTeamId;
+                    return Padding(padding: const EdgeInsets.only(bottom: 10), child: InkWell(
+                      borderRadius: BorderRadius.circular(18),
+                      onTap: isCaptain && id != null ? () => setState(() => selectedTeamId = id) : null,
+                      child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: selected ? const Color(0xFF211A49) : const Color(0xFF10182F), borderRadius: BorderRadius.circular(18), border: Border.all(color: selected ? const Color(0xFF8A5CFF) : Colors.white10)), child: Row(children: [
+                        Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? const Color(0xFF8A5CFF) : Colors.white38),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text('$members/${widget.tournament.teamSize} players • ${isCaptain ? 'Captain' : 'Captain required'}', style: const TextStyle(color: Colors.white54, fontSize: 12))])),
+                      ])),
+                    ));
+                  }).toList())),
+            const SizedBox(height: 12),
+            _Section(title: 'Registration requirements', child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _Requirement(icon: Icons.groups_outlined, text: 'Team must have exactly ${widget.tournament.teamSize} players.'),
+              _Requirement(icon: Icons.sports_esports_outlined, text: 'Team game must match ${widget.tournament.game}.'),
+              _Requirement(icon: Icons.verified_outlined, text: widget.tournament.policy == RegistrationPolicy.captainAds ? 'Captain completes ${widget.tournament.adsRequired} rewarded ad${widget.tournament.adsRequired == 1 ? '' : 's'}.' : 'Each team member completes one rewarded ad.'),
+            ])),
+            const SizedBox(height: 20),
+            FilledButton.icon(onPressed: selectedTeamId == null || submitting ? null : _submit, icon: submitting ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.how_to_reg), label: Text(submitting ? 'Starting...' : 'Start registration')),
+            const SizedBox(height: 8),
+            const Text('Backend remains the source of truth. Eligibility, duplicate registration, slot availability and policy are validated server-side.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
+          ]);
         },
       ),
     );
   }
 
-  String? get _currentUserId => null;
-
   Future<void> _submit() async {
     if (selectedTeamId == null) return;
     setState(() => submitting = true);
     try {
-      final registration = await ref.read(registrationDataSourceProvider).start(
-        tournamentId: widget.tournament.id,
-        teamId: selectedTeamId!,
-      );
+      final registration = await ref.read(registrationDataSourceProvider).start(tournamentId: widget.tournament.id, teamId: selectedTeamId!);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => RegistrationProgressPage(registration: registration, tournament: widget.tournament)));
     } catch (error) {
@@ -125,7 +87,6 @@ class RegistrationProgressPage extends ConsumerWidget {
   const RegistrationProgressPage({super.key, required this.registration, required this.tournament});
   final RegistrationModel registration;
   final TournamentModel tournament;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(registrationStatusProvider(registration.id));
@@ -145,12 +106,12 @@ class RegistrationProgressPage extends ConsumerWidget {
           ])),
           const SizedBox(height: 14),
           _Section(title: 'Reward progress', child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Expanded(child: Text('${value.adsCompleted}/${value.adsRequired} ads verified', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))), Text('${(value.adsRequired == 0 ? 1 : value.adsCompleted / value.adsRequired).clamp(0.0, 1.0) * 100 ~/ 1}%', style: const TextStyle(color: Colors.white54))]),
+            Row(children: [Expanded(child: Text('${value.adsCompleted}/${value.adsRequired} ads verified', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))), Text('${((value.adsRequired == 0 ? 1.0 : value.adsCompleted / value.adsRequired).clamp(0.0, 1.0) * 100).round()}%', style: const TextStyle(color: Colors.white54))]),
             const SizedBox(height: 10),
             LinearProgressIndicator(value: value.adsRequired == 0 ? 1 : (value.adsCompleted / value.adsRequired).clamp(0.0, 1.0), minHeight: 8),
           ])),
           const SizedBox(height: 14),
-          const Text('Ad watching will be connected to the existing AdMob session + backend verification flow in the next step. No client-side completion is treated as a registration success.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
+          const Text('AdMob rewarded-ad sessions and backend verification will be connected next. A client-side ad callback is never treated as registration success.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
         ]),
       ),
     );
