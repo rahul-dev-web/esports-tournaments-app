@@ -9,6 +9,7 @@ import {
   Users,
   Users2,
   FileText,
+  Bell,
   Settings,
   LogOut,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ export default function Sidebar() {
     { label: 'Users', href: '/users', icon: <Users size={19} /> },
     { label: 'Teams', href: '/teams', icon: <Users2 size={19} /> },
     { label: 'Registrations', href: '/registrations', icon: <FileText size={19} /> },
+    { label: 'Notifications', href: '/notifications', icon: <Bell size={19} /> },
     { label: 'Settings', href: '/settings', icon: <Settings size={19} /> },
   ];
 
@@ -78,7 +80,7 @@ export default function Sidebar() {
       </aside>
 
       <nav className="fixed inset-x-2 bottom-2 z-50 rounded-2xl border border-white/10 bg-[#0b1222]/95 px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] shadow-2xl shadow-black/40 backdrop-blur-xl md:hidden">
-        <div className="grid grid-cols-6 gap-0.5">
+        <div className="grid grid-cols-7 gap-0.5">
           {menuItems.map((item) => (
             <Link
               key={item.href}
