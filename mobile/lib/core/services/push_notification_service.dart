@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'api_client.dart';
+import 'local_notification_service.dart';
 
 /// Owns the mobile FCM lifecycle.
 ///
@@ -12,10 +13,16 @@ import 'api_client.dart';
 /// targeting. This service handles Firebase permission/token lifecycle and
 /// synchronises the current device token with the backend.
 class PushNotificationService {
-  PushNotificationService(this._api);
+  PushNotificationService(this._api)
+      : _localNotifications = LocalNotificationService(
+          onNotificationTap: (data) {
+            debugPrint('Local notification opened: $data');
+          },
+        );
 
   final ApiClient _api;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final LocalNotificationService _localNotifications;
   StreamSubscription<AuthState>? _authSubscription;
   StreamSubscription<String>? _tokenSubscription;
   StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
@@ -41,6 +48,8 @@ class PushNotificationService {
       sound: true,
     );
 
+    await _localNotifications.initialize();
+
     // Keep the backend token mapping in sync with Supabase auth changes.
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
       (_) => _registerCurrentToken(),
@@ -49,14 +58,18 @@ class PushNotificationService {
     // FCM can rotate a token without restarting the app.
     _tokenSubscription = _messaging.onTokenRefresh.listen(_registerToken);
 
-    // Foreground messages are already persisted by the backend. Android
-    // requires a local-notification layer for an OS-level foreground banner;
-    // until that layer is added, the in-app notification center remains the
-    // source of truth and can be refreshed when this stream is wired to UI.
+    // Android does not automatically present FCM notification payloads while
+    // the app is foreground. Render the same server-originated message as a
+    // native notification without creating another database notification.
     _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
-      (message) {
-        debugPrint(
-          'Foreground notification received: ${message.messageId}',
+      (message) async {
+        final notification = message.notification;
+        if (notification == null) return;
+
+        await _localNotifications.showForegroundNotification(
+          title: notification.title ?? 'ArenaHub',
+          body: notification.body ?? '',
+          data: message.data,
         );
       },
     );
@@ -65,16 +78,12 @@ class PushNotificationService {
     // notification page remains the canonical in-app notification center.
     _openedMessageSubscription =
         FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint(
-        'Notification opened: ${message.data}',
-      );
+      debugPrint('Notification opened: ${message.data}');
     });
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      debugPrint(
-        'App launched from notification: ${initialMessage.data}',
-      );
+      debugPrint('App launched from notification: ${initialMessage.data}');
     }
 
     await _registerCurrentToken();
@@ -133,6 +142,7 @@ class PushNotificationService {
     await _tokenSubscription?.cancel();
     await _foregroundMessageSubscription?.cancel();
     await _openedMessageSubscription?.cancel();
+    await _localNotifications.dispose();
     _authSubscription = null;
     _tokenSubscription = null;
     _foregroundMessageSubscription = null;
