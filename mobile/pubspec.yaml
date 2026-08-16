@@ -13,6 +13,7 @@ dependencies:
   go_router: ^16.0.0
   http: ^1.5.0
   google_mobile_ads: ^5.1.0
+  image_picker: ^1.1.2
   supabase_flutter: ^2.9.1
 dev_dependencies:
   flutter_test:
