@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.common.config import settings
+from app.common.deps import current_user
 from app.core import models  # noqa: F401  # register SQLAlchemy models
 from app.core.database import init_db
 from app.admin.router import router as admin_router
@@ -42,7 +43,15 @@ app.include_router(users_router, prefix="/api/users", tags=["users"])
 app.include_router(team_static_router, prefix="/api/teams", tags=["teams"])
 app.include_router(teams_router, prefix="/api/teams", tags=["teams"])
 app.include_router(tournaments_router, prefix="/api/tournaments", tags=["tournaments"])
-app.include_router(registrations_router, prefix="/api/registrations", tags=["registrations"])
+# Registration records contain team/captain identifiers and ad-verification state.
+# The user-facing registration API therefore requires authentication. Admin
+# listing/moderation remains under /api/admin/registrations.
+app.include_router(
+    registrations_router,
+    prefix="/api/registrations",
+    tags=["registrations"],
+    dependencies=[Depends(current_user)],
+)
 app.include_router(ads_router, prefix="/api/ads", tags=["ads"])
 app.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
