@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../../core/providers/auth_providers.dart';
 import '../../teams/presentation/providers/team_provider.dart';
 import '../../tournaments/data/models/tournament_model.dart';
 import '../data/registration_models.dart';
+import '../data/rewarded_ad_service.dart';
 import 'registration_provider.dart';
 
 class RegisterTournamentPage extends ConsumerStatefulWidget {
@@ -83,38 +86,112 @@ class _RegisterTournamentPageState extends ConsumerState<RegisterTournamentPage>
   }
 }
 
-class RegistrationProgressPage extends ConsumerWidget {
+class RegistrationProgressPage extends ConsumerStatefulWidget {
   const RegistrationProgressPage({super.key, required this.registration, required this.tournament});
   final RegistrationModel registration;
   final TournamentModel tournament;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(registrationStatusProvider(registration.id));
+  ConsumerState<RegistrationProgressPage> createState() => _RegistrationProgressPageState();
+}
+
+class _RegistrationProgressPageState extends ConsumerState<RegistrationProgressPage> {
+  bool watchingAd = false;
+  Timer? _pollTimer;
+  RegistrationStatusModel? latestStatus;
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = ref.watch(registrationStatusProvider(widget.registration.id));
     return Scaffold(
       backgroundColor: const Color(0xFF070B18),
       appBar: AppBar(title: const Text('Registration Status'), backgroundColor: const Color(0xFF070B18), foregroundColor: Colors.white),
       body: status.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _StateMessage(message: error.toString(), onRetry: () => ref.invalidate(registrationStatusProvider(registration.id))),
-        data: (value) => ListView(padding: const EdgeInsets.all(16), children: [
-          Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: const Color(0xFF10182F), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white10)), child: Column(children: [
-            Icon(value.isComplete ? Icons.verified : Icons.hourglass_top, size: 52, color: value.isComplete ? const Color(0xFF39D0FF) : const Color(0xFF8A5CFF)),
-            const SizedBox(height: 12),
-            Text(value.isComplete ? 'Registration complete' : value.status == RegistrationStatus.adVerification ? 'Ad verification in progress' : 'Registration started', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 8),
-            Text(value.isComplete ? 'Your tournament slot is ${value.slot ?? '-'}.' : 'Your registration is waiting for the required verification steps.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, height: 1.4)),
-          ])),
-          const SizedBox(height: 14),
-          _Section(title: 'Reward progress', child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [Expanded(child: Text('${value.adsCompleted}/${value.adsRequired} ads verified', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))), Text('${((value.adsRequired == 0 ? 1.0 : value.adsCompleted / value.adsRequired).clamp(0.0, 1.0) * 100).round()}%', style: const TextStyle(color: Colors.white54))]),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(value: value.adsRequired == 0 ? 1 : (value.adsCompleted / value.adsRequired).clamp(0.0, 1.0), minHeight: 8),
-          ])),
-          const SizedBox(height: 14),
-          const Text('AdMob rewarded-ad sessions and backend verification will be connected next. A client-side ad callback is never treated as registration success.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
-        ]),
+        error: (error, _) => _StateMessage(message: error.toString(), onRetry: () => ref.invalidate(registrationStatusProvider(widget.registration.id))),
+        data: (value) {
+          latestStatus = value;
+          return ListView(padding: const EdgeInsets.all(16), children: [
+            Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: const Color(0xFF10182F), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.white10)), child: Column(children: [
+              Icon(value.isComplete ? Icons.verified : Icons.hourglass_top, size: 52, color: value.isComplete ? const Color(0xFF39D0FF) : const Color(0xFF8A5CFF)),
+              const SizedBox(height: 12),
+              Text(value.isComplete ? 'Registration complete' : value.status == RegistrationStatus.adVerification ? 'Ad verification in progress' : 'Registration started', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text(value.isComplete ? 'Your tournament slot is ${value.slot ?? '-'}.' : 'Watch the required rewarded ad${value.adsRequired == 1 ? '' : 's'} below. The backend will verify completion.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, height: 1.4)),
+            ])),
+            const SizedBox(height: 14),
+            _Section(title: 'Reward progress', child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [Expanded(child: Text('${value.adsCompleted}/${value.adsRequired} ads verified', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))), Text('${((value.adsRequired == 0 ? 1.0 : value.adsCompleted / value.adsRequired).clamp(0.0, 1.0) * 100).round()}%', style: const TextStyle(color: Colors.white54))]),
+              const SizedBox(height: 10),
+              LinearProgressIndicator(value: value.adsRequired == 0 ? 1 : (value.adsCompleted / value.adsRequired).clamp(0.0, 1.0), minHeight: 8),
+              const SizedBox(height: 14),
+              if (!value.isComplete) SizedBox(width: double.infinity, child: FilledButton.icon(
+                onPressed: watchingAd ? null : _watchRewardedAd,
+                icon: watchingAd ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.play_circle_outline),
+                label: Text(watchingAd ? 'Waiting for verification...' : 'Watch rewarded ad'),
+              )),
+            ])),
+            const SizedBox(height: 14),
+            Text(
+              widget.tournament.policy == RegistrationPolicy.captainAds
+                  ? 'Captain Ads: only the captain can contribute the required ads.'
+                  : 'Individual Ads: each team member contributes one verified rewarded ad.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white38, fontSize: 11, height: 1.4),
+            ),
+          ]);
+        },
       ),
     );
+  }
+
+  Future<void> _watchRewardedAd() async {
+    if (latestStatus?.isComplete == true || watchingAd) return;
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null || userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please sign in again before watching an ad.')));
+      return;
+    }
+
+    setState(() => watchingAd = true);
+    try {
+      final dataSource = ref.read(registrationDataSourceProvider);
+      final session = await dataSource.createAdSession(widget.registration.id);
+      final rewarded = await RewardedAdService().show(
+        registrationId: widget.registration.id,
+        userId: userId,
+        sessionToken: session.sessionToken,
+      );
+      if (!rewarded) {
+        throw StateError('The rewarded ad was not completed. Please try again.');
+      }
+
+      // AdMob SSV is asynchronous. Poll the backend instead of trusting the
+      // local reward callback as proof of registration completion.
+      await _pollForVerification();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))));
+    } finally {
+      if (mounted) setState(() => watchingAd = false);
+    }
+  }
+
+  Future<void> _pollForVerification() async {
+    for (var attempt = 0; attempt < 10; attempt++) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      final value = await ref.read(registrationDataSourceProvider).getStatus(widget.registration.id);
+      if (value.isComplete || value.adsCompleted > (latestStatus?.adsCompleted ?? -1)) {
+        ref.invalidate(registrationStatusProvider(widget.registration.id));
+        return;
+      }
+    }
+    ref.invalidate(registrationStatusProvider(widget.registration.id));
   }
 }
 
