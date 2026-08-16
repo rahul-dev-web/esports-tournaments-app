@@ -111,6 +111,19 @@ def _load_active_session(db: Session, token: str) -> AdSession:
     return session
 
 
+def _load_registration_for_user(db: Session, registration_id: str, user_id: str) -> Registration:
+    registration = db.query(Registration).filter(Registration.id == registration_id).first()
+    if not registration:
+        raise HTTPException(status_code=404, detail="Registration not found")
+
+    team = db.query(Team).filter(Team.id == registration.team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if registration.captain_id != user_id and user_id not in _team_member_ids(team):
+        raise HTTPException(status_code=403, detail="You are not a member of this registration team")
+    return registration
+
+
 def _record_reward_event(db: Session, *, registration: Registration, tournament: Tournament, team: Team, session: AdSession, user_id: str, provider: str, provider_event_id: str) -> Registration:
     if registration.status not in {RegistrationStatusEnum.pending, RegistrationStatusEnum.ad_verification}:
         raise HTTPException(status_code=400, detail="Registration is not accepting ad completions")
@@ -207,9 +220,7 @@ async def start_registration(tournament_id: str, team_id: str, user_id: str = De
 
 @router.post("/{registration_id}/ads/session")
 async def create_ad_session(registration_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-    if not registration:
-        raise HTTPException(status_code=404, detail="Registration not found")
+    registration = _load_registration_for_user(db, registration_id, user_id)
     tournament = db.query(Tournament).filter(Tournament.id == registration.tournament_id).first()
     team = db.query(Team).filter(Team.id == registration.team_id).first()
     if not tournament or not team:
@@ -233,9 +244,7 @@ async def create_ad_session(registration_id: str, user_id: str = Depends(current
 
 @router.post("/{registration_id}/ads/start", response_model=RegistrationSchema)
 async def start_ad_verification(registration_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-    if not registration:
-        raise HTTPException(status_code=404, detail="Registration not found")
+    registration = _load_registration_for_user(db, registration_id, user_id)
     if registration.captain_id != user_id:
         raise HTTPException(status_code=403, detail="Only the captain can start ad verification")
     if registration.status != RegistrationStatusEnum.pending:
@@ -257,9 +266,7 @@ async def complete_ad(registration_id: str, payload: AdCompletion, user_id: str 
         raise HTTPException(status_code=422, detail="provider_event_id is required")
     if not payload.session_token:
         raise HTTPException(status_code=422, detail="session_token is required")
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-    if not registration:
-        raise HTTPException(status_code=404, detail="Registration not found")
+    registration = _load_registration_for_user(db, registration_id, user_id)
     tournament = db.query(Tournament).filter(Tournament.id == registration.tournament_id).with_for_update().first()
     team = db.query(Team).filter(Team.id == registration.team_id).first()
     if not tournament or not team:
@@ -268,11 +275,10 @@ async def complete_ad(registration_id: str, payload: AdCompletion, user_id: str 
     if session.registration_id != registration_id or session.user_id != user_id:
         raise HTTPException(status_code=403, detail="Ad session does not belong to this user or registration")
 
+    was_registered = registration.status == RegistrationStatusEnum.registered
     result = _record_reward_event(db, registration=registration, tournament=tournament, team=team, session=session, user_id=user_id, provider=payload.provider, provider_event_id=payload.provider_event_id)
 
-    # Once the backend confirms the registration and assigns a slot, notify the
-    # entire team. The DB notification is the source of truth; FCM is best effort.
-    if result.status == RegistrationStatusEnum.registered:
+    if not was_registered and result.status == RegistrationStatusEnum.registered:
         notify_users(
             db,
             user_ids=_team_member_ids(team),
@@ -292,9 +298,7 @@ async def complete_ad(registration_id: str, payload: AdCompletion, user_id: str 
 
 @router.post("/{registration_id}/cancel")
 async def cancel_registration(registration_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-    if not registration:
-        raise HTTPException(status_code=404, detail="Registration not found")
+    registration = _load_registration_for_user(db, registration_id, user_id)
     if registration.captain_id != user_id:
         raise HTTPException(status_code=403, detail="Only captain can cancel")
     if registration.status == RegistrationStatusEnum.registered:
@@ -305,33 +309,42 @@ async def cancel_registration(registration_id: str, user_id: str = Depends(curre
 
 
 @router.get("/{registration_id}", response_model=RegistrationSchema)
-async def get_registration_details(registration_id: str, db: Session = Depends(get_db)):
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-    if not registration:
-        raise HTTPException(status_code=404, detail="Registration not found")
+async def get_registration_details(registration_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    registration = _load_registration_for_user(db, registration_id, user_id)
     return _to_schema(registration)
 
 
 @router.get("/tournament/{tournament_id}", response_model=list[RegistrationSchema])
-async def get_tournament_registrations(tournament_id: str, db: Session = Depends(get_db)):
-    return [_to_schema(reg) for reg in db.query(Registration).filter(Registration.tournament_id == tournament_id).all()]
+async def get_tournament_registrations(tournament_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    registrations = db.query(Registration).filter(Registration.tournament_id == tournament_id).all()
+    visible: list[RegistrationSchema] = []
+    for registration in registrations:
+        team = db.query(Team).filter(Team.id == registration.team_id).first()
+        if team and (registration.captain_id == user_id or user_id in _team_member_ids(team)):
+            visible.append(_to_schema(registration))
+    return visible
 
 
 @router.get("/team/{team_id}", response_model=list[RegistrationSchema])
-async def get_team_registrations(team_id: str, db: Session = Depends(get_db)):
-    return [_to_schema(reg) for reg in db.query(Registration).filter(Registration.team_id == team_id).all()]
+async def get_team_registrations(team_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if user_id not in _team_member_ids(team):
+        raise HTTPException(status_code=403, detail="You are not a member of this team")
+    registrations = db.query(Registration).filter(Registration.team_id == team_id).all()
+    return [_to_schema(registration) for registration in registrations]
 
 
 @router.get("/user/me", response_model=list[RegistrationSchema])
 async def my_registrations(user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
-    return [_to_schema(reg) for reg in db.query(Registration).filter(Registration.captain_id == user_id).all()]
+    registrations = db.query(Registration).filter(Registration.captain_id == user_id).all()
+    return [_to_schema(registration) for registration in registrations]
 
 
 @router.get("/status/{registration_id}")
-async def check_registration_status(registration_id: str, db: Session = Depends(get_db)):
-    registration = db.query(Registration).filter(Registration.id == registration_id).first()
-    if not registration:
-        raise HTTPException(status_code=404, detail="Registration not found")
+async def check_registration_status(registration_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    registration = _load_registration_for_user(db, registration_id, user_id)
     completed_by = _coerce_completed_by(registration.completed_by)
     return {
         "registration_id": registration_id,
