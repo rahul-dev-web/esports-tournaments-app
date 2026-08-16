@@ -12,6 +12,7 @@ from app.admin.router import router as admin_router
 from app.ads.router import router as ads_router
 from app.auth.router import router as auth_router
 from app.notifications.router import router as notifications_router
+from app.notifications import events as notification_events  # noqa: F401  # register notification event hooks
 from app.registrations.router import router as registrations_router
 from app.teams.router import router as teams_router
 from app.tournaments.router import router as tournaments_router
