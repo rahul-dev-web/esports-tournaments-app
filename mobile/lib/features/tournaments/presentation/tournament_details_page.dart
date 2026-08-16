@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../registrations/presentation/register_tournament_page.dart';
 import '../data/models/tournament_model.dart';
 import 'providers/tournament_provider.dart';
 
@@ -32,17 +33,7 @@ class _Details extends StatelessWidget {
     final progress = tournament.totalSlots == 0 ? 0.0 : (tournament.registeredTeams / tournament.totalSlots).clamp(0.0, 1.0);
     final isOpen = tournament.status == TournamentStatus.published;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: [
-      Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF1B2140), Color(0xFF10182F)]), borderRadius: BorderRadius.circular(26), border: Border.all(color: Colors.white12)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tournament.game.toUpperCase(), style: const TextStyle(color: Color(0xFF39D0FF), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.4)),
-          const SizedBox(height: 8),
-          Text(tournament.name, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, height: 1.05)),
-          const SizedBox(height: 10),
-          Text('${tournament.mode} • ${tournament.typeLabel}', style: const TextStyle(color: Colors.white70, fontSize: 15)),
-        ]),
-      ),
+      Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF1B2140), Color(0xFF10182F)]), borderRadius: BorderRadius.circular(26), border: Border.all(color: Colors.white12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(tournament.game.toUpperCase(), style: const TextStyle(color: Color(0xFF39D0FF), fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.4)), const SizedBox(height: 8), Text(tournament.name, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900, height: 1.05)), const SizedBox(height: 10), Text('${tournament.mode} • ${tournament.typeLabel}', style: const TextStyle(color: Colors.white70, fontSize: 15))]),
       const SizedBox(height: 16),
       _Section(title: 'Tournament info', children: [
         _InfoRow(icon: Icons.schedule, label: 'Starts', value: _formatDate(tournament.startsAt)),
@@ -51,19 +42,11 @@ class _Details extends StatelessWidget {
         _InfoRow(icon: Icons.confirmation_number_outlined, label: 'Entry', value: tournament.entryRequirement.isEmpty ? 'No requirement' : tournament.entryRequirement),
       ]),
       const SizedBox(height: 12),
-      _Section(title: 'Slots', children: [
-        Row(children: [Expanded(child: Text('${tournament.registeredTeams}/${tournament.totalSlots} teams registered', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))), Text('${(progress * 100).round()}%', style: const TextStyle(color: Colors.white60))]),
-        const SizedBox(height: 10),
-        ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 8, backgroundColor: Colors.white10)),
-      ]),
+      _Section(title: 'Slots', children: [Row(children: [Expanded(child: Text('${tournament.registeredTeams}/${tournament.totalSlots} teams registered', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800))), Text('${(progress * 100).round()}%', style: const TextStyle(color: Colors.white60))]), const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 8, backgroundColor: Colors.white10))]),
       const SizedBox(height: 12),
-      _Section(title: 'Registration policy', children: [
-        Text(tournament.policyLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        Text(tournament.adsRequired > 0 ? '${tournament.adsRequired} rewarded ad${tournament.adsRequired == 1 ? '' : 's'} required.' : 'No rewarded ads required.', style: const TextStyle(color: Colors.white60)),
-      ]),
+      _Section(title: 'Registration policy', children: [Text(tournament.policyLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)), const SizedBox(height: 6), Text(tournament.adsRequired > 0 ? '${tournament.adsRequired} rewarded ad${tournament.adsRequired == 1 ? '' : 's'} required.' : 'No rewarded ads required.', style: const TextStyle(color: Colors.white60))]),
       const SizedBox(height: 20),
-      FilledButton.icon(onPressed: isOpen ? () => _showRegistrationInfo(context) : null, icon: const Icon(Icons.how_to_reg), label: Text(isOpen ? 'Register with my team' : tournament.status.name.toUpperCase())),
+      FilledButton.icon(onPressed: isOpen ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RegisterTournamentPage(tournament: tournament))) : null, icon: const Icon(Icons.how_to_reg), label: Text(isOpen ? 'Register with my team' : tournament.status.name.toUpperCase())),
       if (!isOpen) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Registration is controlled by the tournament status in the backend.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 12))),
     ]);
   }
@@ -80,11 +63,7 @@ class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.icon, required this.label, required this.value});
   final IconData icon; final String label; final String value;
   @override
-  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(children: [Icon(icon, color: const Color(0xFF8A5CFF), size: 20), const SizedBox(width: 10), Expanded(child: Text(label, style: const TextStyle(color: Colors.white54))), Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))]));
-}
-
-void _showRegistrationInfo(BuildContext context) {
-  showModalBottomSheet(context: context, backgroundColor: const Color(0xFF10182F), builder: (_) => const Padding(padding: EdgeInsets.fromLTRB(20, 20, 20, 32), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Registration flow', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)), SizedBox(height: 10), Text('Team eligibility, registration policy and rewarded-ad verification will be enforced by the backend. The next registration module will connect this button to the live registration endpoint.', style: TextStyle(color: Colors.white70, height: 1.5))]));
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 12), child: Row(children: [Icon(icon, color: const Color(0xFF8A5CFF), size: 20), const SizedBox(width: 10), Expanded(child: Text(label, style: const TextStyle(color: Colors.white54))), Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)))]));
 }
 
 String _formatDate(DateTime value) {
