@@ -31,6 +31,12 @@ class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
     await ref.read(notificationDataSourceProvider).markRead(item.id);
     state = await AsyncValue.guard(_load);
   }
+
+  Future<int> markAllRead() async {
+    final updated = await ref.read(notificationDataSourceProvider).markAllRead();
+    state = await AsyncValue.guard(_load);
+    return updated;
+  }
 }
 
 class NotificationsPage extends ConsumerStatefulWidget {
@@ -42,6 +48,28 @@ class NotificationsPage extends ConsumerStatefulWidget {
 
 class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   bool unreadOnly = false;
+  bool markingAllRead = false;
+
+  Future<void> _markAllRead() async {
+    if (markingAllRead) return;
+    setState(() => markingAllRead = true);
+    try {
+      await ref.read(notificationsProvider.notifier).markAllRead();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All notifications marked as read')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not mark notifications as read: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => markingAllRead = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +79,17 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
+          IconButton(
+            tooltip: 'Mark all as read',
+            onPressed: markingAllRead ? null : _markAllRead,
+            icon: markingAllRead
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.done_all_rounded),
+          ),
           IconButton(
             tooltip: 'Refresh',
             onPressed: () =>
