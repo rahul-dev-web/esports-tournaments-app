@@ -125,11 +125,11 @@ export default function SettingsPage() {
         },
       }));
 
-      setSuccess(`${key.replaceAll('_', ' ')} saved successfully.`);
+      setSuccess(`${key.replace(/_/g, ' ')} saved successfully.`);
       window.setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Error saving setting:', err);
-      setError(`Failed to save ${key.replaceAll('_', ' ')}.`);
+      setError(`Failed to save ${key.replace(/_/g, ' ')}.`);
     } finally {
       setSavingKey(null);
     }
