@@ -32,7 +32,15 @@ class ApiClient {
     throw const ApiException(500, 'Unexpected list response');
   }
 
-  Future<dynamic> _request(String method, String path) async {
+  Future<dynamic> post(String path, {Map<String, dynamic>? body}) =>
+      _request('POST', path, body: body);
+
+  Future<dynamic> patch(String path, {Map<String, dynamic>? body}) =>
+      _request('PATCH', path, body: body);
+
+  Future<dynamic> delete(String path) => _request('DELETE', path);
+
+  Future<dynamic> _request(String method, String path, {Map<String, dynamic>? body}) async {
     final session = Supabase.instance.client.auth.currentSession;
     final headers = <String, String>{
       'Accept': 'application/json',
@@ -48,10 +56,21 @@ class ApiClient {
     );
 
     late http.Response response;
-    if (method == 'GET') {
-      response = await _client.get(uri, headers: headers);
-    } else {
-      throw UnsupportedError('HTTP method $method is not implemented');
+    switch (method) {
+      case 'GET':
+        response = await _client.get(uri, headers: headers);
+        break;
+      case 'POST':
+        response = await _client.post(uri, headers: headers, body: jsonEncode(body ?? {}));
+        break;
+      case 'PATCH':
+        response = await _client.patch(uri, headers: headers, body: jsonEncode(body ?? {}));
+        break;
+      case 'DELETE':
+        response = await _client.delete(uri, headers: headers);
+        break;
+      default:
+        throw UnsupportedError('HTTP method $method is not implemented');
     }
 
     final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
