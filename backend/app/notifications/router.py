@@ -11,7 +11,7 @@ from app.common.deps import current_user_id, require_admin
 from app.common.models import DeviceTokenCreate, DeviceTokenResponse, NotificationResponse
 from app.core.database import get_db
 from app.core.models import DeviceToken, Notification, User
-from app.notifications.service import notify_user
+from app.notifications.service import notify_user, notify_users
 
 
 router = APIRouter()
@@ -42,11 +42,31 @@ async def mark_notification_read(
     if notification.user_id != user_id:
         raise HTTPException(status_code=403, detail="Not allowed to update this notification")
 
-    notification.read_at = datetime.now(timezone.utc)
-    notification.updated_at = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    notification.read_at = now
+    notification.updated_at = now
     db.commit()
     db.refresh(notification)
     return notification
+
+
+@router.post("/read-all")
+async def mark_all_notifications_read(
+    user_id: str = Depends(current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Mark every unread notification owned by the current user as read."""
+    now = datetime.now(timezone.utc)
+    updated = (
+        db.query(Notification)
+        .filter(Notification.user_id == user_id, Notification.read_at.is_(None))
+        .update(
+            {Notification.read_at: now, Notification.updated_at: now},
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    return {"success": True, "updated": updated}
 
 
 @router.post("/device-tokens", response_model=DeviceTokenResponse)
@@ -109,7 +129,7 @@ async def deactivate_device_token(
     return {"success": True, "token_id": token_id}
 
 
-@router.get("/invitations/{notification_id}", response_model=NotificationResponse)
+@router.get("/{notification_id}", response_model=NotificationResponse)
 async def get_notification_details(
     notification_id: str,
     user_id: str = Depends(current_user_id),
@@ -159,5 +179,43 @@ async def admin_notify(
     return {
         "success": True,
         "notification_id": notification.id,
+        "push_targets": active_tokens,
+    }
+
+
+@router.post("/admin/broadcast")
+async def admin_broadcast(
+    title: str,
+    body: str,
+    _: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Send an admin announcement to every active user."""
+    title = title.strip()
+    body = body.strip()
+    if not title or not body:
+        raise HTTPException(status_code=422, detail="title and body are required")
+
+    user_ids = [
+        user_id
+        for (user_id,) in db.query(User.id).filter(User.is_active.is_(True)).all()
+    ]
+
+    notify_users(
+        db,
+        user_ids=user_ids,
+        title=title,
+        body=body,
+        notification_type="admin_broadcast",
+    )
+
+    active_tokens = db.query(DeviceToken).join(User).filter(
+        User.is_active.is_(True),
+        DeviceToken.is_active.is_(True),
+    ).count()
+
+    return {
+        "success": True,
+        "recipients": len(user_ids),
         "push_targets": active_tokens,
     }
