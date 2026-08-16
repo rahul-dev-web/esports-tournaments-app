@@ -8,11 +8,13 @@ transaction.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
+from app.core.database import SessionLocal
 from app.core.models import (
     DeviceToken,
     InvitationStatusEnum,
@@ -159,9 +161,6 @@ def _notification_events(session: Session, flush_context, instances) -> None:
                 data={"registration_id": obj.id, "tournament_id": obj.tournament_id, "team_id": obj.team_id},
             )
 
-    # complete_ad() already sends the rich confirmation after its transaction.
-    # Suppress the generic registered event when a RewardAdEvent is part of the
-    # same flush; admin approval has no RewardAdEvent and is therefore notified.
     reward_registration_ids = {
         str(obj.registration_id) for obj in session.new if isinstance(obj, RewardAdEvent)
     }
@@ -234,9 +233,35 @@ def _notification_events(session: Session, flush_context, instances) -> None:
 
 @event.listens_for(Session, "after_commit")
 def _deliver_queued_pushes(session: Session) -> None:
-    for tokens, title, body, data in session.info.pop(_PENDING_KEY, []):
+    queued = session.info.pop(_PENDING_KEY, [])
+    invalid_tokens: set[str] = set()
+
+    for tokens, title, body, data in queued:
         if tokens:
-            send_push(tokens, title, body, data=data)
+            invalid_tokens.update(send_push(tokens, title, body, data=data))
+
+    if not invalid_tokens:
+        return
+
+    # after_commit is outside the original transaction. Use a short-lived
+    # independent session so invalid FCM registrations are deactivated without
+    # touching the already-committed domain transaction.
+    cleanup_db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        (
+            cleanup_db.query(DeviceToken)
+            .filter(DeviceToken.token.in_(invalid_tokens))
+            .update(
+                {DeviceToken.is_active: False, DeviceToken.updated_at: now},
+                synchronize_session=False,
+            )
+        )
+        cleanup_db.commit()
+    except Exception:
+        cleanup_db.rollback()
+    finally:
+        cleanup_db.close()
 
 
 @event.listens_for(Session, "after_rollback")
