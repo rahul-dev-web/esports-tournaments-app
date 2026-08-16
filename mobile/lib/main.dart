@@ -7,6 +7,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config.dart';
 import 'core/router.dart';
+import 'core/theme/app_theme.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
@@ -61,9 +62,12 @@ Future<void> main() async {
 
 class ArenaHubApp extends StatelessWidget {
   const ArenaHubApp({super.key});
+
   @override
   Widget build(BuildContext context) => MaterialApp.router(
-    title: 'ArenaHub', debugShowCheckedModeBanner: false, routerConfig: appRouter,
-    theme: ThemeData(colorSchemeSeed: const Color(0xff6750a4), useMaterial3: true),
-  );
+        title: 'ArenaHub',
+        debugShowCheckedModeBanner: false,
+        routerConfig: appRouter,
+        theme: ArenaTheme.dark(),
+      );
 }
