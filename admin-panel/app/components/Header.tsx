@@ -10,24 +10,21 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle }: HeaderProps) {
   return (
-    <header className="border-b border-white/10 bg-white/5 px-8 py-6 backdrop-blur-xl">
-      <div className="flex justify-between items-center">
-        {/* Title */}
-        <div>
-          <h1 className="text-3xl font-bold text-white">{title}</h1>
-          {subtitle && <p className="mt-1 text-white/65">{subtitle}</p>}
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07101f]/90 px-3 py-3 backdrop-blur-xl sm:px-4 sm:py-4 md:static md:px-6 md:py-5 lg:px-8">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold text-white sm:text-2xl md:text-3xl">{title}</h1>
+          {subtitle && <p className="mt-0.5 truncate text-xs text-white/60 sm:text-sm">{subtitle}</p>}
         </div>
-
-        {/* Right Actions */}
-        <div className="flex items-center gap-6">
-          <button className="rounded-lg p-2 hover:bg-white/10">
-            <Bell size={20} className="text-white/75" />
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2 md:gap-4">
+          <button aria-label="Notifications" className="rounded-lg p-2 hover:bg-white/10">
+            <Bell size={18} className="text-white/75" />
           </button>
-          <button className="rounded-lg p-2 hover:bg-white/10">
-            <Settings size={20} className="text-white/75" />
+          <button aria-label="Settings" className="rounded-lg p-2 hover:bg-white/10">
+            <Settings size={18} className="text-white/75" />
           </button>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 shadow-lg shadow-violet-500/25">
-            <User size={20} className="text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 shadow-lg shadow-violet-500/20 sm:h-9 sm:w-9">
+            <User size={17} className="text-white" />
           </div>
         </div>
       </div>
