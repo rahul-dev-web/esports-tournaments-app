@@ -8,7 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 class LocalNotificationService {
   LocalNotificationService({this.onNotificationTap});
 
-  final void Function(Map<String, dynamic> data)? onNotificationTap;
+  void Function(Map<String, dynamic> data)? onNotificationTap;
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
