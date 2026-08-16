@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../data/profile_storage_service.dart';
 import 'providers/profile_provider.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
@@ -11,7 +14,9 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   final _formKey = GlobalKey<FormState>();
+  final _picker = ImagePicker();
   late final TextEditingController _nameController;
+  late final TextEditingController _usernameController;
   late final TextEditingController _bioController;
   late final TextEditingController _countryController;
   late final TextEditingController _stateController;
@@ -20,12 +25,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   bool _isEditing = false;
   bool _isSaving = false;
+  bool _isUploadingPhoto = false;
   Map<String, dynamic>? _loadedProfile;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
+    _usernameController = TextEditingController();
     _bioController = TextEditingController();
     _countryController = TextEditingController();
     _stateController = TextEditingController();
@@ -36,6 +43,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
+    _usernameController.dispose();
     _bioController.dispose();
     _countryController.dispose();
     _stateController.dispose();
@@ -50,6 +58,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (_loadedProfile == profile) return;
     _loadedProfile = profile;
     _nameController.text = _value(profile['name']);
+    _usernameController.text = _value(profile['username']);
     _bioController.text = _value(profile['bio']);
     _countryController.text = _value(profile['country']);
     _stateController.text = _value(profile['state']);
@@ -61,11 +70,51 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final profile = _loadedProfile;
     if (profile == null) return;
     _nameController.text = _value(profile['name']);
+    _usernameController.text = _value(profile['username']);
     _bioController.text = _value(profile['bio']);
     _countryController.text = _value(profile['country']);
     _stateController.text = _value(profile['state']);
     _cityController.text = _value(profile['city']);
     _gameController.text = _value(profile['preferred_game']);
+  }
+
+  Future<void> _pickAndUploadPhoto(Map<String, dynamic> profile) async {
+    if (_isUploadingPhoto) return;
+    final userId = _value(profile['id']);
+    if (userId.isEmpty) return;
+
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+      maxWidth: 1200,
+      maxHeight: 1200,
+    );
+    if (image == null) return;
+
+    setState(() => _isUploadingPhoto = true);
+    try {
+      final bytes = await image.readAsBytes();
+      final extension = image.name.contains('.') ? image.name.split('.').last : 'jpg';
+      final url = await profileStorageService.uploadProfileImage(
+        userId: userId,
+        bytes: bytes,
+        extension: extension,
+      );
+
+      await ref.read(updateProfileProvider({'photo_url': url}).future);
+      if (!mounted) return;
+      ref.invalidate(userProfileProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to upload photo: ${e.toString().replaceFirst('Exception: ', '')}')),
+      );
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -75,6 +124,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     try {
       await ref.read(updateProfileProvider({
         'name': _nameController.text.trim(),
+        'username': _usernameController.text.trim(),
         'bio': _bioController.text.trim(),
         'country': _countryController.text.trim(),
         'state': _stateController.text.trim(),
@@ -182,17 +232,32 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [Color(0xFFB56CFF), Color(0xFF43D9FF)]),
-            ),
-            child: CircleAvatar(
-              radius: 38,
-              backgroundColor: const Color(0xFF0B1020),
-              backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-              child: photoUrl.isEmpty ? const Icon(Icons.person_rounded, size: 38, color: Colors.white54) : null,
+          GestureDetector(
+            onTap: () => _pickAndUploadPhoto(profile),
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(colors: [Color(0xFFB56CFF), Color(0xFF43D9FF)]),
+                  ),
+                  child: CircleAvatar(
+                    radius: 38,
+                    backgroundColor: const Color(0xFF0B1020),
+                    backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                    child: photoUrl.isEmpty ? const Icon(Icons.person_rounded, size: 38, color: Colors.white54) : null,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(color: Color(0xFF9B6CFF), shape: BoxShape.circle),
+                  child: _isUploadingPhoto
+                      ? const SizedBox.square(dimension: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 14),
@@ -200,12 +265,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name.isEmpty ? 'Arena Player' : name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-                ),
+                Text(name.isEmpty ? 'Arena Player' : name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
                 if (username.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text('@$username', style: const TextStyle(color: Colors.white54)),
@@ -213,14 +273,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF9B6CFF).withOpacity(.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    role,
-                    style: const TextStyle(color: Color(0xFFC8B4FF), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8),
-                  ),
+                  decoration: BoxDecoration(color: const Color(0xFF9B6CFF).withOpacity(.12), borderRadius: BorderRadius.circular(8)),
+                  child: Text(role, style: const TextStyle(color: Color(0xFFC8B4FF), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8)),
                 ),
               ],
             ),
@@ -259,6 +313,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       child: Column(
         children: [
           _field(_nameController, 'Name', Icons.badge_outlined, maxLength: 80, required: true),
+          _field(_usernameController, 'Username', Icons.alternate_email_rounded, maxLength: 40, required: true),
           _field(_bioController, 'Bio', Icons.notes_rounded, maxLines: 3, maxLength: 250),
           _field(_countryController, 'Country', Icons.public_rounded, maxLength: 60),
           _field(_stateController, 'State / Province', Icons.map_outlined, maxLength: 80),
@@ -267,17 +322,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton(onPressed: _isSaving ? null : _cancelEditing, child: const Text('Cancel')),
-              ),
+              Expanded(child: OutlinedButton(onPressed: _isSaving ? null : _cancelEditing, child: const Text('Cancel'))),
               const SizedBox(width: 10),
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
                   onPressed: _isSaving ? null : _saveProfile,
-                  icon: _isSaving
-                      ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.save_rounded),
+                  icon: _isSaving ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.save_rounded),
                   label: Text(_isSaving ? 'Saving...' : 'Save Changes'),
                 ),
               ),
@@ -310,23 +361,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  Widget _field(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    int maxLines = 1,
-    int? maxLength,
-    bool required = false,
-  }) {
+  Widget _field(TextEditingController controller, String label, IconData icon, {int maxLines = 1, int? maxLength, bool required = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
         maxLength: maxLength,
-        validator: required
-            ? (value) => value == null || value.trim().isEmpty ? '$label is required' : null
-            : null,
+        validator: required ? (value) => value == null || value.trim().isEmpty ? '$label is required' : null : null,
         decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, size: 20)),
       ),
     );
@@ -337,32 +379,18 @@ class _SectionCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
-
   const _SectionCard({required this.title, required this.icon, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101625),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(.07)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 19, color: const Color(0xFF9B6CFF)),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF101625), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(.07))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [Icon(icon, size: 19, color: const Color(0xFF9B6CFF)), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]),
+        const SizedBox(height: 14),
+        child,
+      ]),
     );
   }
 }
@@ -370,20 +398,16 @@ class _SectionCard extends StatelessWidget {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
-
   const _InfoRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 118, child: Text(label, style: const TextStyle(color: Colors.white54, fontSize: 13))),
-          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5))),
-        ],
-      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 118, child: Text(label, style: const TextStyle(color: Colors.white54, fontSize: 13))),
+        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5))),
+      ]),
     );
   }
 }
@@ -391,7 +415,6 @@ class _InfoRow extends StatelessWidget {
 class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-
   const _ErrorState({required this.message, required this.onRetry});
 
   @override
