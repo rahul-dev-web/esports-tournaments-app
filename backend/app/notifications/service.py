@@ -13,6 +13,22 @@ from app.core.models import DeviceToken, Notification
 from app.notifications.fcm_service import send_push
 
 
+def _deactivate_invalid_tokens(db: Session, invalid_tokens: set[str]) -> None:
+    if not invalid_tokens:
+        return
+
+    now = datetime.now(timezone.utc)
+    (
+        db.query(DeviceToken)
+        .filter(DeviceToken.token.in_(invalid_tokens))
+        .update(
+            {DeviceToken.is_active: False, DeviceToken.updated_at: now},
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+
+
 def notify_user(
     db: Session,
     *,
@@ -51,7 +67,13 @@ def notify_user(
         **normalized_data,
     }
     if tokens:
-        send_push(tokens, notification.title, notification.body, data=push_data)
+        invalid_tokens = send_push(
+            tokens,
+            notification.title,
+            notification.body,
+            data=push_data,
+        )
+        _deactivate_invalid_tokens(db, invalid_tokens)
 
     return notification
 
