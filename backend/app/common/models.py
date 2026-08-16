@@ -263,6 +263,14 @@ class SettingCreate(BaseModel):
     value_type: str = Field(default="string")
 
 
+class SettingUpdate(BaseModel):
+    """Payload for PATCH /admin/settings/{key}."""
+
+    value: Any
+    description: str | None = None
+    value_type: str = Field(default="string")
+
+
 class SettingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -275,9 +283,9 @@ class SettingResponse(BaseModel):
 
 
 class SettingsDict(BaseModel):
+    """Supported global application defaults used by the admin settings UI."""
+
     ads_per_registration: int = 2
     registration_policy: str = "individual_ads"
     max_team_size: int = 5
     tournament_registration_timeout: int = 24
-    reward_amount: int = 1000
-    reward_currency: str = "INR"
