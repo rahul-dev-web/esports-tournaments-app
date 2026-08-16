@@ -179,6 +179,8 @@ class NotificationResponse(BaseModel):
     user_id: str
     title: str
     body: str
+    notification_type: str = "general"
+    data: dict[str, Any] = Field(default_factory=dict)
     read_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
