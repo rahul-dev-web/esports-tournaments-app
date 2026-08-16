@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from app.common.deps import current_user_id, require_admin
 from app.common.models import DeviceTokenCreate, DeviceTokenResponse, NotificationResponse
 from app.core.database import get_db
-from app.core.models import DeviceToken, Notification
-from app.notifications.fcm_service import send_push
+from app.core.models import DeviceToken, Notification, User
+from app.notifications.service import notify_user
 
 
 router = APIRouter()
@@ -56,29 +56,35 @@ async def register_device_token(
     db: Session = Depends(get_db),
 ):
     token = payload.token.strip()
+    platform = payload.platform.strip().lower()
     if not token:
         raise HTTPException(status_code=422, detail="token is required")
+    if platform not in {"android", "ios", "web"}:
+        raise HTTPException(status_code=422, detail="platform must be android, ios, or web")
 
     device_token = db.query(DeviceToken).filter(DeviceToken.token == token).first()
     if device_token and device_token.user_id != user_id:
         raise HTTPException(status_code=409, detail="Device token already registered for another user")
 
+    now = datetime.now(timezone.utc)
     if not device_token:
         device_token = DeviceToken(
             user_id=user_id,
             token=token,
-            platform=payload.platform.strip().lower(),
+            platform=platform,
             device_name=payload.device_name,
             is_active=True,
-            last_seen_at=datetime.now(timezone.utc),
+            last_seen_at=now,
+            created_at=now,
+            updated_at=now,
         )
         db.add(device_token)
     else:
-        device_token.platform = payload.platform.strip().lower()
+        device_token.platform = platform
         device_token.device_name = payload.device_name
         device_token.is_active = True
-        device_token.last_seen_at = datetime.now(timezone.utc)
-        device_token.updated_at = datetime.now(timezone.utc)
+        device_token.last_seen_at = now
+        device_token.updated_at = now
 
     db.commit()
     db.refresh(device_token)
@@ -103,6 +109,21 @@ async def deactivate_device_token(
     return {"success": True, "token_id": token_id}
 
 
+@router.get("/invitations/{notification_id}", response_model=NotificationResponse)
+async def get_notification_details(
+    notification_id: str,
+    user_id: str = Depends(current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Get one notification, limited to its owner."""
+    notification = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    if notification.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Not allowed to view this notification")
+    return notification
+
+
 @router.post("/admin/notify")
 async def admin_notify(
     title: str,
@@ -116,34 +137,27 @@ async def admin_notify(
     if not title or not body:
         raise HTTPException(status_code=422, detail="title and body are required")
 
-    notification = Notification(
+    target = db.query(User).filter(User.id == target_user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    if not target.is_active:
+        raise HTTPException(status_code=403, detail="Target user is suspended")
+
+    notification = notify_user(
+        db,
         user_id=target_user_id,
         title=title,
         body=body,
-        read_at=None,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        notification_type="admin_notification",
     )
-    db.add(notification)
-    db.commit()
-    db.refresh(notification)
 
-    tokens = [
-        item.token
-        for item in db.query(DeviceToken)
-        .filter(DeviceToken.user_id == target_user_id, DeviceToken.is_active.is_(True))
-        .all()
-    ]
-    delivered = send_push(
-        tokens,
-        title,
-        body,
-        data={"notification_id": notification.id, "type": "admin_notification"},
-    )
+    active_tokens = db.query(DeviceToken).filter(
+        DeviceToken.user_id == target_user_id,
+        DeviceToken.is_active.is_(True),
+    ).count()
 
     return {
         "success": True,
         "notification_id": notification.id,
-        "push_delivered": delivered,
-        "push_targets": len(tokens),
+        "push_targets": active_tokens,
     }
