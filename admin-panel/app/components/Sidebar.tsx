@@ -36,15 +36,12 @@ export default function Sidebar() {
 
   const logout = async () => {
     localStorage.removeItem('adminToken');
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    if (supabase) await supabase.auth.signOut();
     router.push('/login');
   };
 
   return (
     <>
-      {/* Desktop navigation */}
       <aside className="hidden w-64 shrink-0 flex-col bg-gradient-to-b from-purple-950 via-purple-900 to-purple-950 p-5 text-white md:flex">
         <div className="mb-7 px-1">
           <h1 className="text-xl font-bold tracking-wide text-purple-100">ARENAHUB</h1>
@@ -80,24 +77,25 @@ export default function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-2 bottom-2 z-50 grid grid-cols-6 rounded-2xl border border-white/10 bg-[#0b1222]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-xl md:hidden safe-area-bottom">
-        {menuItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-label={item.label}
-            className={clsx(
-              'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-medium transition-colors',
-              pathname === item.href
-                ? 'bg-white/15 text-white'
-                : 'text-white/55 hover:bg-white/10 hover:text-white'
-            )}
-          >
-            {item.icon}
-            <span className="truncate">{item.label}</span>
-          </Link>
-        ))}
+      <nav className="fixed inset-x-2 bottom-2 z-50 rounded-2xl border border-white/10 bg-[#0b1222]/95 px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] shadow-2xl shadow-black/40 backdrop-blur-xl md:hidden">
+        <div className="grid grid-cols-6 gap-0.5">
+          {menuItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-label={item.label}
+              className={clsx(
+                'flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium transition-colors',
+                pathname === item.href
+                  ? 'bg-white/15 text-white'
+                  : 'text-white/55 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              {item.icon}
+              <span className="max-w-full truncate">{item.label}</span>
+            </Link>
+          ))}
+        </div>
       </nav>
     </>
   );
