@@ -1,184 +1,165 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/auth_providers.dart';
 import '../../data/datasources/team_remote_datasource.dart';
- 
-// Data source provider
-final teamDataSourceProvider = Provider((ref) {
+
+final teamDataSourceProvider = Provider<TeamRemoteDataSource>((ref) {
   return TeamRemoteDataSource();
 });
- 
-// ============================================================
-// TEAMS LIST
-// ============================================================
- 
+
 final teamsProvider = FutureProvider.family<List<Map<String, dynamic>>, String?>((ref, game) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   return dataSource.getTeams(game: game);
 });
- 
-// ============================================================
-// TEAM DETAILS
-// ============================================================
- 
+
 final teamDetailsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, teamId) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   return dataSource.getTeamDetails(teamId);
 });
- 
-// ============================================================
-// TEAM MEMBERS
-// ============================================================
- 
+
 final teamMembersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, teamId) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   return dataSource.getTeamMembers(teamId);
 });
- 
-// ============================================================
-// MY TEAMS
-// ============================================================
- 
+
 final myTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
   return dataSource.getMyTeams(token);
 });
- 
-// ============================================================
-// CREATE TEAM
-// ============================================================
- 
+
 final createTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
+
   final result = await dataSource.createTeam(
     token,
-    name: params['name'],
-    game: params['game'],
-    isPrivate: params['is_private'] ?? false,
-    logoUrl: params['logo_url'],
+    name: params['name'] as String,
+    game: params['game'] as String,
+    isPrivate: params['is_private'] as bool? ?? false,
+    logoUrl: params['logo_url'] as String?,
   );
-  
-  // Invalidate my teams cache
+
   ref.invalidate(myTeamsProvider);
   ref.invalidate(teamsProvider);
-  
   return result;
 });
- 
-// ============================================================
-// UPDATE TEAM
-// ============================================================
- 
+
 final updateTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
+
   final result = await dataSource.updateTeam(
     token,
-    params['team_id'],
-    name: params['name'],
-    game: params['game'],
-    isPrivate: params['is_private'],
-    logoUrl: params['logo_url'],
+    params['team_id'] as String,
+    name: params['name'] as String,
+    game: params['game'] as String,
+    isPrivate: params['is_private'] as bool? ?? false,
+    logoUrl: params['logo_url'] as String?,
   );
-  
-  // Invalidate caches
+
   ref.invalidate(teamDetailsProvider);
   ref.invalidate(myTeamsProvider);
   ref.invalidate(teamsProvider);
-  
   return result;
 });
- 
-// ============================================================
-// DELETE TEAM
-// ============================================================
- 
+
 final deleteTeamProvider = FutureProvider.family<void, String>((ref, teamId) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
+
   await dataSource.deleteTeam(token, teamId);
-  
-  // Invalidate caches
   ref.invalidate(myTeamsProvider);
   ref.invalidate(teamsProvider);
   ref.invalidate(teamDetailsProvider);
 });
- 
-// ============================================================
-// INVITATIONS
-// ============================================================
- 
+
+final joinTeamProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, teamId) async {
+  final dataSource = ref.watch(teamDataSourceProvider);
+  final token = ref.watch(currentAccessTokenProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (token == null || userId == null) throw Exception('Not authenticated');
+
+  final result = await dataSource.joinTeam(token, teamId, userId);
+  ref.invalidate(myTeamsProvider);
+  ref.invalidate(teamMembersProvider(teamId));
+  ref.invalidate(teamDetailsProvider(teamId));
+  ref.invalidate(teamsProvider);
+  return result;
+});
+
 final receivedInvitationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
-  return dataSource.getReceivedInvitations(token, status: 'pending');
+  return dataSource.getReceivedInvitations(token);
 });
- 
-final acceptInvitationProvider = FutureProvider.family<void, Map<String, String>>((ref, params) async {
+
+final teamInvitationsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, teamId) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
-  await dataSource.acceptInvitation(token, params['team_id']!, params['invitation_id']!);
-  
-  // Invalidate caches
+  return dataSource.getTeamInvitations(token, teamId);
+});
+
+final acceptInvitationProvider = FutureProvider.family<void, String>((ref, invitationId) async {
+  final dataSource = ref.watch(teamDataSourceProvider);
+  final token = ref.watch(currentAccessTokenProvider);
+  if (token == null) throw Exception('Not authenticated');
+
+  await dataSource.acceptInvitation(token, invitationId);
   ref.invalidate(receivedInvitationsProvider);
   ref.invalidate(myTeamsProvider);
+  ref.invalidate(teamsProvider);
 });
- 
-final rejectInvitationProvider = FutureProvider.family<void, Map<String, String>>((ref, params) async {
+
+final rejectInvitationProvider = FutureProvider.family<void, String>((ref, invitationId) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
-  await dataSource.rejectInvitation(token, params['team_id']!, params['invitation_id']!);
-  
-  // Invalidate caches
+
+  await dataSource.rejectInvitation(token, invitationId);
   ref.invalidate(receivedInvitationsProvider);
 });
- 
+
 final sendInvitationProvider = FutureProvider.family<Map<String, dynamic>, Map<String, dynamic>>((ref, params) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  
-  return dataSource.sendInvitation(
+
+  final result = await dataSource.sendInvitation(
     token,
-    params['team_id'],
-    receiverId: params['receiver_id'],
-    message: params['message'],
+    params['team_id'] as String,
+    receiverId: params['receiver_id'] as String,
+    message: params['message'] as String?,
   );
+
+  ref.invalidate(teamInvitationsProvider(params['team_id'] as String));
+  return result;
 });
- 
-// ============================================================
-// SEARCH USERS
-// ============================================================
- 
+
+final removeMemberProvider = FutureProvider.family<void, Map<String, String>>((ref, params) async {
+  final dataSource = ref.watch(teamDataSourceProvider);
+  final token = ref.watch(currentAccessTokenProvider);
+  if (token == null) throw Exception('Not authenticated');
+
+  await dataSource.removeMember(
+    token,
+    params['team_id']!,
+    params['member_user_id']!,
+  );
+  ref.invalidate(teamMembersProvider(params['team_id']!));
+  ref.invalidate(teamDetailsProvider(params['team_id']!));
+  ref.invalidate(myTeamsProvider);
+});
+
 final searchUsersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, query) async {
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
-  
   if (token == null) throw Exception('Not authenticated');
-  if (query.length < 2) return [];
-  
-  return dataSource.searchUsers(token, query);
+  if (query.trim().length < 2) return [];
+  return dataSource.searchUsers(token, query.trim());
 });
