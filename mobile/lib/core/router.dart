@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/auth/presentation/login_page.dart';
+import '../features/notifications/presentation/notifications_page.dart';
 import '../features/profile/presentation/profile_page.dart';
 import '../features/registrations/presentation/registrations_page.dart';
 import '../features/teams/presentation/screens/teams_list_screen.dart';
@@ -27,6 +28,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/', builder: (_, __) => const HomePage()),
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
     GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
+    GoRoute(path: '/notifications', builder: (_, __) => const NotificationsPage()),
     GoRoute(path: '/teams', builder: (_, __) => const TeamsListScreen()),
     GoRoute(path: '/teams/invitations', builder: (_, __) => const TeamInvitationsScreen()),
     GoRoute(path: '/tournaments', builder: (_, __) => const TournamentsPage()),
