@@ -15,6 +15,7 @@ from app.notifications.router import router as notifications_router
 from app.notifications import events as notification_events  # noqa: F401  # register notification event hooks
 from app.registrations.router import router as registrations_router
 from app.teams.router import router as teams_router
+from app.teams.static_routes import router as team_static_router
 from app.tournaments.router import router as tournaments_router
 from app.users.router import router as users_router
 
@@ -37,6 +38,8 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(users_router, prefix="/api/users", tags=["users"])
+# Register fixed team paths before the dynamic /{team_id}/... routes.
+app.include_router(team_static_router, prefix="/api/teams", tags=["teams"])
 app.include_router(teams_router, prefix="/api/teams", tags=["teams"])
 app.include_router(tournaments_router, prefix="/api/tournaments", tags=["tournaments"])
 app.include_router(registrations_router, prefix="/api/registrations", tags=["registrations"])
