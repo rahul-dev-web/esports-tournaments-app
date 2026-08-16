@@ -53,13 +53,18 @@ def _get_messaging():
     return messaging
 
 
-def send_push(tokens: Iterable[str], title: str, body: str, data: dict[str, str] | None = None) -> int:
-    """Send a notification to active FCM tokens and return successful sends."""
+def send_push(
+    tokens: Iterable[str],
+    title: str,
+    body: str,
+    data: dict[str, str] | None = None,
+) -> set[str]:
+    """Send push notifications and return tokens known to be invalid."""
     messaging = _get_messaging()
     if messaging is None:
-        return 0
+        return set()
 
-    success_count = 0
+    invalid_tokens: set[str] = set()
     for token in tokens:
         try:
             messaging.send(
@@ -69,9 +74,19 @@ def send_push(tokens: Iterable[str], title: str, body: str, data: dict[str, str]
                     data=data or {},
                 )
             )
-            success_count += 1
+        except messaging.UnregisteredError:
+            # FCM explicitly says this registration is no longer valid and it
+            # should be removed/deactivated on the application server.
+            invalid_tokens.add(token)
+            logger.info("Deactivating unregistered FCM token")
+        except messaging.SenderIdMismatchError:
+            # The token belongs to a different sender/project and cannot be
+            # used by this Firebase configuration.
+            invalid_tokens.add(token)
+            logger.warning("Deactivating FCM token with sender-id mismatch")
         except Exception as exc:
-            # A failed token must never make the database notification fail.
+            # Transient/configuration failures must never make the database
+            # notification fail and are intentionally retained for retry.
             logger.warning("FCM delivery failed for token: %s", exc)
 
-    return success_count
+    return invalid_tokens
