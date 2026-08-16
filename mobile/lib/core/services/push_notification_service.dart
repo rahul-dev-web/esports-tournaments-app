@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../router.dart';
@@ -71,8 +70,6 @@ class PushNotificationService {
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      // The first frame may still be mounting the router, so schedule the
-      // deep-link for the next event-loop turn.
       Future<void>.delayed(
         Duration.zero,
         () => _handleNotificationTap(initialMessage.data),
@@ -86,7 +83,11 @@ class PushNotificationService {
     _handleNotificationTap(message.data);
   }
 
-  Future<void> _handleNotificationTap(Map<String, dynamic> rawData) async {
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    unawaited(_processNotificationTap(data));
+  }
+
+  Future<void> _processNotificationTap(Map<String, dynamic> rawData) async {
     final data = Map<String, dynamic>.from(rawData);
     final notificationId = data['notification_id']?.toString();
 
