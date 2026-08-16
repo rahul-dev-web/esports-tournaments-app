@@ -9,8 +9,8 @@ import 'api_client.dart';
 /// Owns the mobile FCM lifecycle.
 ///
 /// The backend is the source of truth for notification records and device
-/// targeting. This service only handles Firebase permission/token lifecycle
-/// and synchronises the current device token with the backend.
+/// targeting. This service handles Firebase permission/token lifecycle and
+/// synchronises the current device token with the backend.
 class PushNotificationService {
   PushNotificationService(this._api);
 
@@ -33,6 +33,14 @@ class PushNotificationService {
       provisional: false,
     );
 
+    // iOS does not display notification payloads while the app is in the
+    // foreground unless foreground presentation is explicitly enabled.
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     // Keep the backend token mapping in sync with Supabase auth changes.
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
       (_) => _registerCurrentToken(),
@@ -41,8 +49,10 @@ class PushNotificationService {
     // FCM can rotate a token without restarting the app.
     _tokenSubscription = _messaging.onTokenRefresh.listen(_registerToken);
 
-    // Foreground messages are already persisted by the backend. The app can
-    // refresh its notification provider when this stream is wired to the UI.
+    // Foreground messages are already persisted by the backend. Android
+    // requires a local-notification layer for an OS-level foreground banner;
+    // until that layer is added, the in-app notification center remains the
+    // source of truth and can be refreshed when this stream is wired to UI.
     _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
       (message) {
         debugPrint(
@@ -51,7 +61,7 @@ class PushNotificationService {
       },
     );
 
-    // Keep the tap payload available in logs for deep-link integration. The
+    // Keep the tap payload available for deep-link integration. The
     // notification page remains the canonical in-app notification center.
     _openedMessageSubscription =
         FirebaseMessaging.onMessageOpenedApp.listen((message) {
