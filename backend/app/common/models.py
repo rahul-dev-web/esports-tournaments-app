@@ -257,7 +257,14 @@ class TeamInvitationList(BaseModel):
 
 
 class SettingCreate(BaseModel):
-    key: str = Field(..., min_length=1, max_length=100)
+    """Payload accepted by the admin settings create/update endpoint.
+
+    The setting key is supplied by the URL for PATCH /settings/{key}, so it is
+    optional in the request body. Keeping it optional also prevents the admin
+    panel from having to duplicate the same key in both URL and JSON body.
+    """
+
+    key: str | None = Field(default=None, min_length=1, max_length=100)
     value: Any
     description: str | None = None
     value_type: str = Field(default="string")
