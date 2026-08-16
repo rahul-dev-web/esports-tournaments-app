@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Bell, CheckCircle2, Send, Users } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Bell, CheckCircle2, Home, Send, Users } from 'lucide-react';
 import Layout from '../components/Layout';
 import apiClient from '../lib/api';
 
@@ -70,16 +71,44 @@ export default function NotificationsPage() {
   return (
     <Layout title="Notifications" subtitle="Send targeted or broadcast notifications">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="mb-5 flex items-start gap-3">
-          <div className="rounded-2xl bg-purple-500/15 p-3 text-purple-300">
-            <Bell size={22} />
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-purple-500/15 p-3 text-purple-300">
+              <Bell size={22} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white sm:text-2xl">Notification Generator</h2>
+              <p className="mt-1 text-sm text-white/55">
+                Send an in-app notification and best-effort FCM push to one user or every active user.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-white sm:text-2xl">Notification Generator</h2>
-            <p className="mt-1 text-sm text-white/55">
-              Send an in-app notification and best-effort FCM push to one user or every active user.
-            </p>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
+            >
+              <Home size={16} />
+              Dashboard
+            </Link>
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white"
+            >
+              Settings
+            </Link>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-white/50 transition hover:text-white"
+          >
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </Link>
         </div>
 
         <form
