@@ -32,27 +32,46 @@ class _RegisterTournamentPageState extends ConsumerState<RegisterTournamentPage>
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _StateMessage(message: error.toString(), onRetry: () => ref.invalidate(myTeamsProvider)),
         data: (items) {
-          final eligible = items.where((team) => team['game']?.toString().toLowerCase() == widget.tournament.game.toLowerCase()).toList();
+          final eligibleGameTeams = items.where((team) => team['game']?.toString().toLowerCase() == widget.tournament.game.toLowerCase()).toList();
           return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 32), children: [
             _TournamentHeader(tournament: widget.tournament),
             const SizedBox(height: 16),
-            _Section(title: 'Choose your team', child: eligible.isEmpty
+            _Section(title: 'Choose your team', child: eligibleGameTeams.isEmpty
                 ? const Text('You do not have a team for this game yet. Create or join a team first.', style: TextStyle(color: Colors.white60, height: 1.45))
-                : Column(children: eligible.map((team) {
+                : Column(children: eligibleGameTeams.map((team) {
                     final id = team['id']?.toString();
                     final name = team['name']?.toString() ?? 'Unnamed team';
                     final memberIds = team['member_ids'];
                     final members = memberIds is List ? memberIds.length : 0;
                     final isCaptain = team['captain_id']?.toString() == currentUserId;
+                    final sizeMatches = members == widget.tournament.teamSize;
+                    final selectable = isCaptain && sizeMatches && id != null;
                     final selected = id != null && id == selectedTeamId;
+                    final reason = !isCaptain
+                        ? 'Captain required'
+                        : !sizeMatches
+                            ? '${widget.tournament.teamSize} players required'
+                            : 'Eligible';
                     return Padding(padding: const EdgeInsets.only(bottom: 10), child: InkWell(
                       borderRadius: BorderRadius.circular(18),
-                      onTap: isCaptain && id != null ? () => setState(() => selectedTeamId = id) : null,
-                      child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: selected ? const Color(0xFF211A49) : const Color(0xFF10182F), borderRadius: BorderRadius.circular(18), border: Border.all(color: selected ? const Color(0xFF8A5CFF) : Colors.white10)), child: Row(children: [
-                        Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? const Color(0xFF8A5CFF) : Colors.white38),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)), const SizedBox(height: 4), Text('$members/${widget.tournament.teamSize} players • ${isCaptain ? 'Captain' : 'Captain required'}', style: const TextStyle(color: Colors.white54, fontSize: 12))])),
-                      ])),
+                      onTap: selectable ? () => setState(() => selectedTeamId = id) : null,
+                      child: Opacity(
+                        opacity: selectable || selected ? 1 : 0.58,
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(color: selected ? const Color(0xFF211A49) : const Color(0xFF10182F), borderRadius: BorderRadius.circular(18), border: Border.all(color: selected ? const Color(0xFF8A5CFF) : Colors.white10)),
+                          child: Row(children: [
+                            Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? const Color(0xFF8A5CFF) : Colors.white38),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 4),
+                              Text('$members/${widget.tournament.teamSize} players • $reason', style: TextStyle(color: sizeMatches && isCaptain ? Colors.white54 : const Color(0xFFFFB86B), fontSize: 12)),
+                            ])),
+                            if (selectable) const Icon(Icons.verified_outlined, color: Color(0xFF39D0FF), size: 19),
+                          ]),
+                        ),
+                      ),
                     ));
                   }).toList())),
             const SizedBox(height: 12),
