@@ -90,20 +90,22 @@ export default function SettingsPage() {
       setError(null);
       setSuccess(null);
 
-      const numericValue = valueType === 'number' ? Number(value) : value;
+      const parsedValue = valueType === 'number' ? Number(value) : value;
 
-      if (valueType === 'number' && (!Number.isInteger(numericValue) || numericValue < 0)) {
-        setError(`${key} must be a non-negative whole number.`);
-        return;
-      }
+      if (valueType === 'number') {
+        if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+          setError(`${key} must be a non-negative whole number.`);
+          return;
+        }
 
-      if (key === 'max_team_size' && numericValue < 1) {
-        setError('Maximum team size must be at least 1.');
-        return;
+        if (key === 'max_team_size' && parsedValue < 1) {
+          setError('Maximum team size must be at least 1.');
+          return;
+        }
       }
 
       await adminAPI.updateSetting(key, {
-        value: numericValue,
+        value: parsedValue,
         value_type: valueType,
         description: settings[key]?.description,
       });
@@ -112,7 +114,7 @@ export default function SettingsPage() {
         ...previous,
         [key]: {
           ...(previous[key] ?? { key }),
-          value: numericValue,
+          value: parsedValue,
           value_type: valueType,
         },
       }));
