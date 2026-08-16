@@ -16,7 +16,6 @@ class TeamRemoteDataSource {
     if (game != null && game.trim().isNotEmpty) {
       url += '&game=${Uri.encodeQueryComponent(game.trim())}';
     }
-
     final response = await http.get(Uri.parse(url));
     return _decodeList(response, fallback: 'Failed to load teams');
   }
@@ -90,20 +89,8 @@ class TeamRemoteDataSource {
     }
   }
 
-  /// Join an open team through the backend's authenticated join flow.
-  Future<Map<String, dynamic>> joinTeam(String token, String teamId) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/teams/$teamId/members/current-user'),
-      headers: _authHeaders(token),
-    );
-
-    // The backend currently exposes the self-join operation using
-    // /{team_id}/members/{new_user_id}. The caller must supply the current
-    // user id, so this method is intentionally implemented by joinTeamWithUserId.
-    return _decodeMap(response, fallback: 'Failed to join team');
-  }
-
-  Future<Map<String, dynamic>> joinTeamWithUserId(
+  /// Backend join flow: POST /teams/{team_id}/members/{current_user_id}.
+  Future<Map<String, dynamic>> joinTeam(
     String token,
     String teamId,
     String userId,
@@ -133,15 +120,10 @@ class TeamRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> getReceivedInvitations(
-    String token, {
-    String? status,
-  }) async {
-    var url = '$baseUrl/teams/invitations/received';
-    if (status != null) {
-      url += '?status=${Uri.encodeQueryComponent(status)}';
-    }
+    String token,
+  ) async {
     final response = await http.get(
-      Uri.parse(url),
+      Uri.parse('$baseUrl/teams/invitations/received'),
       headers: _authHeaders(token),
     );
     return _decodeList(response, fallback: 'Failed to load invitations');
