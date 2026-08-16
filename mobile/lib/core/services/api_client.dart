@@ -21,10 +21,18 @@ class ApiClient {
   final http.Client _client;
 
   Future<Map<String, dynamic>> get(String path) async {
-    return _request('GET', path);
+    final decoded = await _request('GET', path);
+    if (decoded is Map<String, dynamic>) return decoded;
+    throw const ApiException(500, 'Unexpected object response');
   }
 
-  Future<Map<String, dynamic>> _request(String method, String path) async {
+  Future<List<dynamic>> getList(String path) async {
+    final decoded = await _request('GET', path);
+    if (decoded is List<dynamic>) return decoded;
+    throw const ApiException(500, 'Unexpected list response');
+  }
+
+  Future<dynamic> _request(String method, String path) async {
     final session = Supabase.instance.client.auth.currentSession;
     final headers = <String, String>{
       'Accept': 'application/json',
@@ -35,7 +43,9 @@ class ApiClient {
       headers['Authorization'] = 'Bearer ${session!.accessToken}';
     }
 
-    final uri = Uri.parse('${apiBaseUrl.replaceFirst(RegExp(r'/$'), '')}/${path.replaceFirst(RegExp(r'^/'), '')}');
+    final uri = Uri.parse(
+      '${apiBaseUrl.replaceFirst(RegExp(r'/$'), '')}/${path.replaceFirst(RegExp(r'^/'), '')}',
+    );
 
     late http.Response response;
     if (method == 'GET') {
@@ -50,7 +60,6 @@ class ApiClient {
       throw ApiException(response.statusCode, detail ?? 'Request failed');
     }
 
-    if (decoded is Map<String, dynamic>) return decoded;
-    throw const ApiException(500, 'Unexpected API response');
+    return decoded;
   }
 }
