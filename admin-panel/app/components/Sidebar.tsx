@@ -2,8 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Home,
   Trophy,
@@ -27,57 +26,79 @@ export default function Sidebar() {
   const router = useRouter();
 
   const menuItems: MenuItem[] = [
-    { label: 'Dashboard', href: '/dashboard', icon: <Home size={20} /> },
-    { label: 'Tournaments', href: '/tournaments', icon: <Trophy size={20} /> },
-    { label: 'Users', href: '/users', icon: <Users size={20} /> },
-    { label: 'Teams', href: '/teams', icon: <Users2 size={20} /> },
-    { label: 'Registrations', href: '/registrations', icon: <FileText size={20} /> },
-    { label: 'Settings', href: '/settings', icon: <Settings size={20} /> },
+    { label: 'Dashboard', href: '/dashboard', icon: <Home size={19} /> },
+    { label: 'Tournaments', href: '/tournaments', icon: <Trophy size={19} /> },
+    { label: 'Users', href: '/users', icon: <Users size={19} /> },
+    { label: 'Teams', href: '/teams', icon: <Users2 size={19} /> },
+    { label: 'Registrations', href: '/registrations', icon: <FileText size={19} /> },
+    { label: 'Settings', href: '/settings', icon: <Settings size={19} /> },
   ];
 
-  return (
-    <aside className="w-64 bg-gradient-to-b from-purple-900 to-purple-800 text-white min-h-screen p-6">
-      {/* Logo */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-purple-200">ARENAHUB</h1>
-        <p className="text-sm text-purple-300">Admin Panel</p>
-      </div>
+  const logout = async () => {
+    localStorage.removeItem('adminToken');
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    router.push('/login');
+  };
 
-      {/* Navigation */}
-      <nav className="space-y-2">
+  return (
+    <>
+      {/* Desktop navigation */}
+      <aside className="hidden w-64 shrink-0 flex-col bg-gradient-to-b from-purple-950 via-purple-900 to-purple-950 p-5 text-white md:flex">
+        <div className="mb-7 px-1">
+          <h1 className="text-xl font-bold tracking-wide text-purple-100">ARENAHUB</h1>
+          <p className="text-xs text-purple-300">Admin Panel</p>
+        </div>
+
+        <nav className="flex-1 space-y-1.5">
+          {menuItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={clsx(
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
+                pathname === item.href
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-purple-100/85 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <div className="mt-6 border-t border-purple-700/60 pt-4">
+          <button
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-purple-100/85 transition-colors hover:bg-white/10 hover:text-white"
+            onClick={logout}
+          >
+            <LogOut size={19} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile bottom navigation */}
+      <nav className="fixed inset-x-2 bottom-2 z-50 grid grid-cols-6 rounded-2xl border border-white/10 bg-[#0b1222]/95 p-1.5 shadow-2xl shadow-black/40 backdrop-blur-xl md:hidden safe-area-bottom">
         {menuItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            aria-label={item.label}
             className={clsx(
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-medium transition-colors',
               pathname === item.href
-                ? 'bg-white bg-opacity-20 text-white'
-                : 'text-purple-100 hover:bg-white hover:bg-opacity-10'
+                ? 'bg-white/15 text-white'
+                : 'text-white/55 hover:bg-white/10 hover:text-white'
             )}
           >
             {item.icon}
-            <span>{item.label}</span>
+            <span className="truncate">{item.label}</span>
           </Link>
         ))}
       </nav>
-
-      {/* Footer */}
-      <div className="mt-auto pt-6 border-t border-purple-700">
-        <button
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-purple-100 hover:bg-white hover:bg-opacity-10 transition-colors"
-          onClick={async () => {
-            localStorage.removeItem('adminToken');
-            if (supabase) {
-              await supabase.auth.signOut();
-            }
-            router.push('/login');
-          }}
-        >
-          <LogOut size={20} />
-          <span>Logout</span>
-        </button>
-      </div>
-    </aside>
+    </>
   );
 }
