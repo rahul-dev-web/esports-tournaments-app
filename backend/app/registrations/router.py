@@ -73,6 +73,15 @@ def _required_ads(tournament: Tournament, team: Team) -> int:
     return max(1, tournament.team_size)
 
 
+def _verified_member_ids(db: Session, registration_id: str) -> set[str]:
+    rows = (
+        db.query(RewardAdEvent.user_id)
+        .filter(RewardAdEvent.registration_id == registration_id)
+        .all()
+    )
+    return {str(row[0]) for row in rows if row[0]}
+
+
 def _count_verified_ads(db: Session, registration_id: str, user_id: str | None = None) -> int:
     query = db.query(RewardAdEvent).filter(RewardAdEvent.registration_id == registration_id)
     if user_id is not None:
@@ -174,6 +183,13 @@ def _record_reward_event(
             registration.status = RegistrationStatusEnum.ad_verification
 
         if registration.ads_completed >= registration.ads_required:
+            if tournament.policy == RegistrationPolicyEnum.individual_ads:
+                current_members = set(_team_member_ids(team))
+                verified_members = _verified_member_ids(db, registration.id)
+                if current_members != verified_members:
+                    db.commit()
+                    db.refresh(registration)
+                    return registration
             _finalize_registration(db, registration, tournament)
 
         registration.updated_at = datetime.now(timezone.utc)
