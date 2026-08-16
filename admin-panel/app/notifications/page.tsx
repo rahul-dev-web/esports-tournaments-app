@@ -1,10 +1,11 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Bell, CheckCircle2, Send } from 'lucide-react';
+import { Bell, CheckCircle2, Send, Users } from 'lucide-react';
 import apiClient from '../lib/api';
 
 export default function NotificationsPage() {
+  const [broadcast, setBroadcast] = useState(false);
   const [targetUserId, setTargetUserId] = useState('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -17,24 +18,44 @@ export default function NotificationsPage() {
     setMessage('');
     setError('');
 
-    if (!targetUserId.trim() || !title.trim() || !body.trim()) {
-      setError('User ID, title and message are required.');
+    if (!title.trim() || !body.trim()) {
+      setError('Title and message are required.');
+      return;
+    }
+
+    if (!broadcast && !targetUserId.trim()) {
+      setError('User ID is required for a targeted notification.');
       return;
     }
 
     try {
       setLoading(true);
-      const response = await apiClient.post('/notifications/admin/notify', null, {
-        params: {
-          target_user_id: targetUserId.trim(),
-          title: title.trim(),
-          body: body.trim(),
-        },
-      });
 
-      setMessage(
-        `Notification created. ${response.data?.push_targets ?? 0} active device target(s) found.`,
-      );
+      const response = broadcast
+        ? await apiClient.post('/notifications/admin/broadcast', null, {
+            params: {
+              title: title.trim(),
+              body: body.trim(),
+            },
+          })
+        : await apiClient.post('/notifications/admin/notify', null, {
+            params: {
+              target_user_id: targetUserId.trim(),
+              title: title.trim(),
+              body: body.trim(),
+            },
+          });
+
+      if (broadcast) {
+        setMessage(
+          `Broadcast created for ${response.data?.recipients ?? 0} active user(s). ${response.data?.push_targets ?? 0} active device target(s) found.`,
+        );
+      } else {
+        setMessage(
+          `Notification created. ${response.data?.push_targets ?? 0} active device target(s) found.`,
+        );
+      }
+
       setTitle('');
       setBody('');
     } catch (requestError: any) {
@@ -54,24 +75,59 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-xl font-bold text-white sm:text-2xl">Notifications</h1>
           <p className="mt-1 text-sm text-white/55">
-            Send an in-app notification and best-effort FCM push to a user.
+            Send an in-app notification and best-effort FCM push to one user or every active user.
           </p>
         </div>
       </div>
 
       <form onSubmit={submit} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-xl sm:p-6">
-        <div className="space-y-4">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/55">
-              Target user ID
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setBroadcast(false)}
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+              !broadcast
+                ? 'border-purple-400/60 bg-purple-500/10 text-white'
+                : 'border-white/10 bg-black/10 text-white/60'
+            }`}
+          >
+            <Bell size={18} />
+            <span>
+              <span className="block text-sm font-semibold">Targeted</span>
+              <span className="block text-xs text-white/45">One user</span>
             </span>
-            <input
-              value={targetUserId}
-              onChange={(event) => setTargetUserId(event.target.value)}
-              placeholder="User UUID"
-              className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none transition focus:border-purple-400/70"
-            />
-          </label>
+          </button>
+          <button
+            type="button"
+            onClick={() => setBroadcast(true)}
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+              broadcast
+                ? 'border-purple-400/60 bg-purple-500/10 text-white'
+                : 'border-white/10 bg-black/10 text-white/60'
+            }`}
+          >
+            <Users size={18} />
+            <span>
+              <span className="block text-sm font-semibold">Broadcast</span>
+              <span className="block text-xs text-white/45">All active users</span>
+            </span>
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {!broadcast && (
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/55">
+                Target user ID
+              </span>
+              <input
+                value={targetUserId}
+                onChange={(event) => setTargetUserId(event.target.value)}
+                placeholder="User UUID"
+                className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-white outline-none transition focus:border-purple-400/70"
+              />
+            </label>
+          )}
 
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/55">
@@ -120,7 +176,7 @@ export default function NotificationsPage() {
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send size={17} />
-          {loading ? 'Sending...' : 'Send Notification'}
+          {loading ? 'Sending...' : broadcast ? 'Broadcast Notification' : 'Send Notification'}
         </button>
       </form>
     </main>
