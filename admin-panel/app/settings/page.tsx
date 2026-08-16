@@ -90,18 +90,24 @@ export default function SettingsPage() {
       setError(null);
       setSuccess(null);
 
-      const parsedValue = valueType === 'number' ? Number(value) : value;
+      let parsedValue: number | string;
 
       if (valueType === 'number') {
-        if (!Number.isInteger(parsedValue) || parsedValue < 0) {
+        const numericValue = Number(value);
+
+        if (!Number.isInteger(numericValue) || numericValue < 0) {
           setError(`${key} must be a non-negative whole number.`);
           return;
         }
 
-        if (key === 'max_team_size' && parsedValue < 1) {
+        if (key === 'max_team_size' && numericValue < 1) {
           setError('Maximum team size must be at least 1.');
           return;
         }
+
+        parsedValue = numericValue;
+      } else {
+        parsedValue = value;
       }
 
       await adminAPI.updateSetting(key, {
