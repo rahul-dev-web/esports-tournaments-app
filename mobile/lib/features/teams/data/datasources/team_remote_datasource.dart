@@ -1,74 +1,44 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import '../../../../core/config.dart';
- 
+
 class TeamRemoteDataSource {
   final String baseUrl = apiBaseUrl;
-  
-  /// Get all teams
+
   Future<List<Map<String, dynamic>>> getTeams({
     String? game,
     int skip = 0,
-    int limit = 10,
+    int limit = 20,
   }) async {
-    String url = '$baseUrl/teams?skip=$skip&limit=$limit';
-    if (game != null) {
-      url += '&game=$game';
+    var url = '$baseUrl/teams?skip=$skip&limit=$limit';
+    if (game != null && game.trim().isNotEmpty) {
+      url += '&game=${Uri.encodeQueryComponent(game.trim())}';
     }
- 
+
     final response = await http.get(Uri.parse(url));
- 
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load teams');
-    }
+    return _decodeList(response, fallback: 'Failed to load teams');
   }
- 
-  /// Get single team details
+
   Future<Map<String, dynamic>> getTeamDetails(String teamId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/teams/$teamId'),
-    );
- 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Team not found');
-    }
+    final response = await http.get(Uri.parse('$baseUrl/teams/$teamId'));
+    return _decodeMap(response, fallback: 'Team not found');
   }
- 
-  /// Get team members
+
   Future<List<Map<String, dynamic>>> getTeamMembers(String teamId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/teams/$teamId/members'),
-    );
- 
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load team members');
-    }
+    final response = await http.get(Uri.parse('$baseUrl/teams/$teamId/members'));
+    return _decodeList(response, fallback: 'Failed to load team members');
   }
- 
-  /// Get current user's teams
+
   Future<List<Map<String, dynamic>>> getMyTeams(String token) async {
     final response = await http.get(
       Uri.parse('$baseUrl/teams/user/my-teams'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
     );
- 
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load your teams');
-    }
+    return _decodeList(response, fallback: 'Failed to load your teams');
   }
- 
-  /// Create team
+
   Future<Map<String, dynamic>> createTeam(
     String token, {
     required String name,
@@ -78,26 +48,17 @@ class TeamRemoteDataSource {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/teams'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
       body: jsonEncode({
-        'name': name,
-        'game': game,
+        'name': name.trim(),
+        'game': game.trim(),
         'is_private': isPrivate,
         'logo_url': logoUrl,
       }),
     );
- 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to create team');
-    }
+    return _decodeMap(response, fallback: 'Failed to create team');
   }
- 
-  /// Update team
+
   Future<Map<String, dynamic>> updateTeam(
     String token,
     String teamId, {
@@ -108,41 +69,52 @@ class TeamRemoteDataSource {
   }) async {
     final response = await http.patch(
       Uri.parse('$baseUrl/teams/$teamId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
       body: jsonEncode({
-        'name': name,
-        'game': game,
+        'name': name.trim(),
+        'game': game.trim(),
         'is_private': isPrivate,
         'logo_url': logoUrl,
       }),
     );
- 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to update team');
-    }
+    return _decodeMap(response, fallback: 'Failed to update team');
   }
- 
-  /// Delete team
+
   Future<void> deleteTeam(String token, String teamId) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/teams/$teamId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
     );
- 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to delete team');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_errorMessage(response, 'Failed to delete team'));
     }
   }
- 
-  /// Send team invitation
+
+  /// Join an open team through the backend's authenticated join flow.
+  Future<Map<String, dynamic>> joinTeam(String token, String teamId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/teams/$teamId/members/current-user'),
+      headers: _authHeaders(token),
+    );
+
+    // The backend currently exposes the self-join operation using
+    // /{team_id}/members/{new_user_id}. The caller must supply the current
+    // user id, so this method is intentionally implemented by joinTeamWithUserId.
+    return _decodeMap(response, fallback: 'Failed to join team');
+  }
+
+  Future<Map<String, dynamic>> joinTeamWithUserId(
+    String token,
+    String teamId,
+    String userId,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/teams/$teamId/members/$userId'),
+      headers: _authHeaders(token),
+    );
+    return _decodeMap(response, fallback: 'Failed to join team');
+  }
+
   Future<Map<String, dynamic>> sendInvitation(
     String token,
     String teamId, {
@@ -151,104 +123,123 @@ class TeamRemoteDataSource {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/teams/$teamId/invitations'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
       body: jsonEncode({
         'receiver_id': receiverId,
         'message': message,
       }),
     );
- 
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to send invitation');
-    }
+    return _decodeMap(response, fallback: 'Failed to send invitation');
   }
- 
-  /// Get received invitations
+
   Future<List<Map<String, dynamic>>> getReceivedInvitations(
     String token, {
     String? status,
   }) async {
-    String url = '$baseUrl/invitations/received';
+    var url = '$baseUrl/teams/invitations/received';
     if (status != null) {
-      url += '?status=$status';
+      url += '?status=${Uri.encodeQueryComponent(status)}';
     }
- 
     final response = await http.get(
       Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
     );
- 
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load invitations');
-    }
+    return _decodeList(response, fallback: 'Failed to load invitations');
   }
- 
-  /// Accept invitation
-  Future<void> acceptInvitation(
+
+  Future<List<Map<String, dynamic>>> getTeamInvitations(
     String token,
     String teamId,
-    String invitationId,
   ) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/teams/$teamId/invitations'),
+      headers: _authHeaders(token),
+    );
+    return _decodeList(response, fallback: 'Failed to load team invitations');
+  }
+
+  Future<void> acceptInvitation(String token, String invitationId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/teams/invitations/$invitationId/accept'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
     );
- 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to accept invitation');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_errorMessage(response, 'Failed to accept invitation'));
     }
   }
- 
-  /// Reject invitation
-  Future<void> rejectInvitation(
-    String token,
-    String teamId,
-    String invitationId,
-  ) async {
+
+  Future<void> rejectInvitation(String token, String invitationId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/teams/invitations/$invitationId/reject'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: _authHeaders(token),
     );
- 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to reject invitation');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_errorMessage(response, 'Failed to reject invitation'));
     }
   }
- 
-  /// Search users
+
+  Future<void> removeMember(
+    String token,
+    String teamId,
+    String memberUserId,
+  ) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/teams/$teamId/members/$memberUserId'),
+      headers: _authHeaders(token),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_errorMessage(response, 'Failed to remove member'));
+    }
+  }
+
   Future<List<Map<String, dynamic>>> searchUsers(
     String token,
     String query,
   ) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/search?q=$query'),
-      headers: {
+      Uri.parse('$baseUrl/users/search?q=${Uri.encodeQueryComponent(query)}'),
+      headers: _authHeaders(token),
+    );
+    final map = _decodeMap(response, fallback: 'Failed to search users');
+    return List<Map<String, dynamic>>.from(map['results'] ?? const []);
+  }
+
+  Map<String, String> _authHeaders(String token) => {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
-      },
-    );
- 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return List<Map<String, dynamic>>.from(data['results'] ?? []);
-    } else {
-      throw Exception('Failed to search users');
+      };
+
+  List<Map<String, dynamic>> _decodeList(
+    http.Response response, {
+    required String fallback,
+  }) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_errorMessage(response, fallback));
     }
+    final data = jsonDecode(response.body);
+    if (data is! List) throw Exception(fallback);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Map<String, dynamic> _decodeMap(
+    http.Response response, {
+    required String fallback,
+  }) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_errorMessage(response, fallback));
+    }
+    final data = jsonDecode(response.body);
+    if (data is! Map) throw Exception(fallback);
+    return Map<String, dynamic>.from(data);
+  }
+
+  String _errorMessage(http.Response response, String fallback) {
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map && data['detail'] != null) {
+        return data['detail'].toString();
+      }
+    } catch (_) {}
+    return fallback;
   }
 }
