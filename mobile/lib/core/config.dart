@@ -13,6 +13,11 @@ const String supabaseAnonKey = String.fromEnvironment(
   defaultValue: '',
 );
 
+const String supabaseProfileBucket = String.fromEnvironment(
+  'SUPABASE_PROFILE_BUCKET',
+  defaultValue: 'profile-images',
+);
+
 const String oauthRedirectUrl = String.fromEnvironment(
   'OAUTH_REDIRECT_URL',
   defaultValue: 'com.arenahub.arenahub_mobile://login-callback/',
