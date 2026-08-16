@@ -18,7 +18,10 @@ const inputClassName =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 !text-slate-900 placeholder:text-slate-400 caret-violet-600 shadow-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500';
 
 const selectClassName =
-  'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 !text-slate-900 shadow-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:bg-slate-100';
+  'w-full min-w-0 rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 !text-slate-900 shadow-sm outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:bg-slate-100';
+
+const saveButtonClassName =
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50';
 
 const DEFAULTS = {
   ads_per_registration: '2',
@@ -181,90 +184,100 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="grid gap-6 p-6 sm:p-7 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-black/10 p-5">
+          <div className="grid gap-4 p-4 sm:gap-6 sm:p-7 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-black/10 p-4 sm:p-5">
               <label className="mb-2 block text-sm font-semibold text-white">
                 Ads Per Registration
               </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                inputMode="numeric"
-                value={adsPerRegistration}
-                onChange={(event) => updateLocalSetting('ads_per_registration', event.target.value)}
-                disabled={savingKey !== null}
-                className={inputClassName}
-              />
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1 sm:max-w-xs">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={adsPerRegistration}
+                    onChange={(event) => updateLocalSetting('ads_per_registration', event.target.value)}
+                    disabled={savingKey !== null}
+                    className={inputClassName}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveSetting('ads_per_registration', adsPerRegistration, 'number')}
+                  disabled={savingKey !== null}
+                  className={saveButtonClassName}
+                >
+                  <Save size={16} />
+                  {savingKey === 'ads_per_registration' ? 'Saving...' : 'Save'}
+                </button>
+              </div>
               <p className="mt-2 text-xs leading-5 text-white/50">
                 Default number of rewarded ads required before a registration can be completed.
               </p>
-              <button
-                type="button"
-                onClick={() => saveSetting('ads_per_registration', adsPerRegistration, 'number')}
-                disabled={savingKey !== null}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Save size={16} />
-                {savingKey === 'ads_per_registration' ? 'Saving...' : 'Save'}
-              </button>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/10 p-5">
+            <div className="rounded-2xl border border-white/10 bg-black/10 p-4 sm:p-5">
               <label className="mb-2 block text-sm font-semibold text-white">
                 Registration Policy
               </label>
-              <select
-                value={registrationPolicy}
-                onChange={(event) => updateLocalSetting('registration_policy', event.target.value)}
-                disabled={savingKey !== null}
-                className={selectClassName}
-              >
-                <option value="individual_ads">Individual Ads — each player watches</option>
-                <option value="captain_ads">Captain Ads — captain watches all</option>
-              </select>
+              <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1 sm:max-w-sm">
+                  <select
+                    value={registrationPolicy}
+                    onChange={(event) => updateLocalSetting('registration_policy', event.target.value)}
+                    disabled={savingKey !== null}
+                    className={selectClassName}
+                  >
+                    <option value="individual_ads">Individual Ads — each player watches</option>
+                    <option value="captain_ads">Captain Ads — captain watches all</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveSetting('registration_policy', registrationPolicy, 'string')}
+                  disabled={savingKey !== null}
+                  className={saveButtonClassName}
+                >
+                  <Save size={16} />
+                  {savingKey === 'registration_policy' ? 'Saving...' : 'Save'}
+                </button>
+              </div>
               <p className="mt-2 text-xs leading-5 text-white/50">
                 Default policy for new tournament registrations. It can be overridden per tournament.
               </p>
-              <button
-                type="button"
-                onClick={() => saveSetting('registration_policy', registrationPolicy, 'string')}
-                disabled={savingKey !== null}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Save size={16} />
-                {savingKey === 'registration_policy' ? 'Saving...' : 'Save'}
-              </button>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-black/10 p-5 lg:col-span-2">
+            <div className="rounded-2xl border border-white/10 bg-black/10 p-4 sm:p-5 lg:col-span-2">
               <label className="mb-2 block text-sm font-semibold text-white">
                 Maximum Team Size
               </label>
-              <div className="max-w-xl">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputMode="numeric"
-                  value={maxTeamSize}
-                  onChange={(event) => updateLocalSetting('max_team_size', event.target.value)}
-                  disabled={savingKey !== null}
-                  className={inputClassName}
-                />
-                <p className="mt-2 text-xs leading-5 text-white/50">
-                  Platform-wide maximum number of players allowed in a single team.
-                </p>
+              <div className="flex items-center gap-3 sm:max-w-lg">
+                <div className="min-w-0 flex-1 sm:max-w-xs">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={maxTeamSize}
+                    onChange={(event) => updateLocalSetting('max_team_size', event.target.value)}
+                    disabled={savingKey !== null}
+                    className={inputClassName}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => saveSetting('max_team_size', maxTeamSize, 'number')}
                   disabled={savingKey !== null}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={saveButtonClassName}
                 >
                   <Save size={16} />
                   {savingKey === 'max_team_size' ? 'Saving...' : 'Save'}
                 </button>
               </div>
+              <p className="mt-2 text-xs leading-5 text-white/50">
+                Platform-wide maximum number of players allowed in a single team.
+              </p>
             </div>
           </div>
         </section>
