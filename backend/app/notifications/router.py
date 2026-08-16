@@ -1,4 +1,4 @@
-"""Notification and device-token endpoints."""
+"""Notification, device-token and push delivery endpoints."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from app.common.deps import current_user_id, require_admin
 from app.common.models import DeviceTokenCreate, DeviceTokenResponse, NotificationResponse
 from app.core.database import get_db
 from app.core.models import DeviceToken, Notification
+from app.notifications.fcm_service import send_push
 
 
 router = APIRouter()
@@ -110,10 +111,15 @@ async def admin_notify(
     _: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    title = title.strip()
+    body = body.strip()
+    if not title or not body:
+        raise HTTPException(status_code=422, detail="title and body are required")
+
     notification = Notification(
         user_id=target_user_id,
-        title=title.strip(),
-        body=body.strip(),
+        title=title,
+        body=body,
         read_at=None,
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc),
@@ -121,4 +127,23 @@ async def admin_notify(
     db.add(notification)
     db.commit()
     db.refresh(notification)
-    return {"success": True, "notification_id": notification.id}
+
+    tokens = [
+        item.token
+        for item in db.query(DeviceToken)
+        .filter(DeviceToken.user_id == target_user_id, DeviceToken.is_active.is_(True))
+        .all()
+    ]
+    delivered = send_push(
+        tokens,
+        title,
+        body,
+        data={"notification_id": notification.id, "type": "admin_notification"},
+    )
+
+    return {
+        "success": True,
+        "notification_id": notification.id,
+        "push_delivered": delivered,
+        "push_targets": len(tokens),
+    }
