@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../router.dart';
 import 'api_client.dart';
 import 'local_notification_service.dart';
 
@@ -14,11 +16,7 @@ import 'local_notification_service.dart';
 /// synchronises the current device token with the backend.
 class PushNotificationService {
   PushNotificationService(this._api)
-      : _localNotifications = LocalNotificationService(
-          onNotificationTap: (data) {
-            debugPrint('Local notification opened: $data');
-          },
-        );
+      : _localNotifications = LocalNotificationService();
 
   final ApiClient _api;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -40,27 +38,21 @@ class PushNotificationService {
       provisional: false,
     );
 
-    // iOS does not display notification payloads while the app is in the
-    // foreground unless foreground presentation is explicitly enabled.
     await _messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
     );
 
+    _localNotifications.onNotificationTap = _handleNotificationTap;
     await _localNotifications.initialize();
 
-    // Keep the backend token mapping in sync with Supabase auth changes.
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen(
       (_) => _registerCurrentToken(),
     );
 
-    // FCM can rotate a token without restarting the app.
     _tokenSubscription = _messaging.onTokenRefresh.listen(_registerToken);
 
-    // Android does not automatically present FCM notification payloads while
-    // the app is foreground. Render the same server-originated message as a
-    // native notification without creating another database notification.
     _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(
       (message) async {
         final notification = message.notification;
@@ -74,19 +66,66 @@ class PushNotificationService {
       },
     );
 
-    // Keep the tap payload available for deep-link integration. The
-    // notification page remains the canonical in-app notification center.
     _openedMessageSubscription =
-        FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      debugPrint('Notification opened: ${message.data}');
-    });
+        FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteMessageTap);
 
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      debugPrint('App launched from notification: ${initialMessage.data}');
+      // The first frame may still be mounting the router, so schedule the
+      // deep-link for the next event-loop turn.
+      Future<void>.delayed(
+        Duration.zero,
+        () => _handleNotificationTap(initialMessage.data),
+      );
     }
 
     await _registerCurrentToken();
+  }
+
+  void _handleRemoteMessageTap(RemoteMessage message) {
+    _handleNotificationTap(message.data);
+  }
+
+  Future<void> _handleNotificationTap(Map<String, dynamic> rawData) async {
+    final data = Map<String, dynamic>.from(rawData);
+    final notificationId = data['notification_id']?.toString();
+
+    if (notificationId != null && notificationId.isNotEmpty) {
+      try {
+        await _api.patch('/notifications/$notificationId/read');
+      } catch (error) {
+        // Navigation must remain available even when marking the notification
+        // read temporarily fails because of network/authentication state.
+        debugPrint('Unable to mark notification as read: $error');
+      }
+    }
+
+    final tournamentId = data['tournament_id']?.toString();
+    final teamId = data['team_id']?.toString();
+    final type = data['type']?.toString() ?? data['notification_type']?.toString();
+
+    if (tournamentId != null && tournamentId.isNotEmpty) {
+      appRouter.go('/tournaments/${Uri.encodeComponent(tournamentId)}');
+      return;
+    }
+
+    if (type != null &&
+        (type.contains('invitation') || type.contains('team_invitation'))) {
+      appRouter.go('/teams/invitations');
+      return;
+    }
+
+    if (teamId != null && teamId.isNotEmpty) {
+      appRouter.go('/teams');
+      return;
+    }
+
+    if (type != null && type.contains('registration')) {
+      appRouter.go('/registrations');
+      return;
+    }
+
+    appRouter.go('/notifications');
   }
 
   String _platformName() {
@@ -130,8 +169,6 @@ class PushNotificationService {
         },
       );
     } catch (error, stackTrace) {
-      // A transient backend/network failure must not prevent the app from
-      // starting. The next auth/token refresh will retry registration.
       debugPrint('Unable to sync FCM token: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
