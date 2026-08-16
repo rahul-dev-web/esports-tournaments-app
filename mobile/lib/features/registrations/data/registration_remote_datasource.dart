@@ -25,6 +25,27 @@ class RegistrationRemoteDataSource {
     return _decodeRegistration(response, 'Unable to start registration');
   }
 
+  Future<AdSessionModel> createAdSession(String registrationId) async {
+    final response = await _client.post(
+      Uri.parse('$apiBaseUrl/registrations/$registrationId/ads/session'),
+      headers: _headers,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_error(response, 'Unable to create rewarded-ad session'));
+    }
+    final data = jsonDecode(response.body);
+    if (data is! Map) throw Exception('Unexpected ad-session response');
+    return AdSessionModel.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  Future<RegistrationModel> startAdVerification(String registrationId) async {
+    final response = await _client.post(
+      Uri.parse('$apiBaseUrl/registrations/$registrationId/ads/start'),
+      headers: _headers,
+    );
+    return _decodeRegistration(response, 'Unable to start ad verification');
+  }
+
   Future<RegistrationModel> getById(String registrationId) async {
     final response = await _client.get(
       Uri.parse('$apiBaseUrl/registrations/$registrationId'),
@@ -85,4 +106,20 @@ class RegistrationRemoteDataSource {
     } catch (_) {}
     return fallback;
   }
+}
+
+class AdSessionModel {
+  const AdSessionModel({required this.registrationId, required this.sessionId, required this.sessionToken, required this.expiresAt});
+
+  final String registrationId;
+  final String sessionId;
+  final String sessionToken;
+  final DateTime expiresAt;
+
+  factory AdSessionModel.fromJson(Map<String, dynamic> json) => AdSessionModel(
+        registrationId: json['registration_id'].toString(),
+        sessionId: json['session_id'].toString(),
+        sessionToken: json['session_token'].toString(),
+        expiresAt: DateTime.parse(json['expires_at'].toString()),
+      );
 }
