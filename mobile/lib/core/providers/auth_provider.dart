@@ -10,7 +10,9 @@ import '../services/fcm_service.dart';
 final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 final fcmServiceProvider = Provider<FcmService>((ref) => FcmService());
 
-final authProvider = AsyncNotifierProvider<AuthController, UserProfile?>(AuthController.new);
+final authProvider = AsyncNotifierProvider<AuthController, UserProfile?>(
+  AuthController.new,
+);
 
 class AuthController extends AsyncNotifier<UserProfile?> {
   StreamSubscription<AuthState>? _subscription;
@@ -27,20 +29,18 @@ class AuthController extends AsyncNotifier<UserProfile?> {
       _tokenSubscription?.cancel();
     });
 
-    if (!_isSupabaseConfigured) return null;
+    // Supabase is initialized by main.dart only when the required build-time
+    // configuration is present. If it has no usable configuration, there is
+    // no authenticated session to restore.
+    final session = _supabase.auth.currentSession;
+    if (session == null) return null;
 
     _subscription = _supabase.auth.onAuthStateChange.listen((_) {
       unawaited(refresh());
     });
 
-    final session = _supabase.auth.currentSession;
-    if (session == null) return null;
-
     return _loadProfile();
   }
-
-  bool get _isSupabaseConfigured =>
-      _supabase.auth.currentSession != null || _supabase.auth.currentUser != null;
 
   Future<UserProfile?> _loadProfile() async {
     try {
@@ -61,7 +61,7 @@ class AuthController extends AsyncNotifier<UserProfile?> {
       await _fcm.requestPermission();
       await _fcm.registerCurrentToken(_api);
       await _tokenSubscription?.cancel();
-      _tokenSubscription = _fcm.onTokenRefresh.listen((_) {
+      _tokenSubscription = _fcm.onTokenRefresh().listen((_) {
         unawaited(_fcm.registerCurrentToken(_api));
       });
     } catch (_) {
