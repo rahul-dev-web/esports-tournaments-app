@@ -16,7 +16,7 @@ final authProvider = AsyncNotifierProvider<AuthController, UserProfile?>(
 
 class AuthController extends AsyncNotifier<UserProfile?> {
   StreamSubscription<AuthState>? _subscription;
-  StreamSubscription<String>? _tokenSubscription;
+  StreamSubscription<String?>? _tokenSubscription;
 
   SupabaseClient get _supabase => Supabase.instance.client;
   ApiClient get _api => ref.read(apiClientProvider);
