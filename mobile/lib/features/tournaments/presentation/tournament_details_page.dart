@@ -47,7 +47,15 @@ class _Details extends StatelessWidget {
       _Section(title: 'Registration policy', children: [Text(tournament.policyLabel, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)), const SizedBox(height: 6), Text(tournament.adsRequired > 0 ? '${tournament.adsRequired} rewarded ad${tournament.adsRequired == 1 ? '' : 's'} required.' : 'No rewarded ads required.', style: const TextStyle(color: Colors.white60))]),
       const SizedBox(height: 20),
       FilledButton.icon(onPressed: isOpen ? () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RegisterTournamentPage(tournament: tournament))) : null, icon: const Icon(Icons.how_to_reg), label: Text(isOpen ? 'Register with my team' : tournament.status.name.toUpperCase())),
-      if (!isOpen) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Registration is controlled by the tournament status in the backend.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 12))),
+      if (!isOpen)
+        const Padding(
+          padding: EdgeInsets.only(top: 8),
+          child: Text(
+            'Registration is controlled by the tournament status in the backend.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white38, fontSize: 12),
+          ),
+        ),
     ]);
   }
 }
