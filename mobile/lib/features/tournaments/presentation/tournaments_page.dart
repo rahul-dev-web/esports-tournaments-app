@@ -126,7 +126,7 @@ class _Meta extends StatelessWidget {
   final String value;
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(label, style: const TextStyle(color: Colors.white45, fontSize: 11)),
+    Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
     const SizedBox(height: 3),
     Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
   ]);
