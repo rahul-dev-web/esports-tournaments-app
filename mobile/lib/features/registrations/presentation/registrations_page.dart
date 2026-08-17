@@ -197,7 +197,7 @@ class _Content extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           status.description,
-          style: const TextStyle(color: Colors.white45, fontSize: 11),
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
         ),
       ],
     );
