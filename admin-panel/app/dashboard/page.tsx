@@ -46,9 +46,19 @@ export default function DashboardPage() {
   useEffect(() => {
     let mounted = true;
     const fetchDashboardData = async () => {
+      console.group('[AUTH DEBUG] DASHBOARD — STEP 12');
+      console.log('Dashboard mounted');
+      console.log('Current URL:', window.location.href);
+      console.log('Stored adminToken:', localStorage.getItem('adminToken') ? 'PRESENT' : 'MISSING');
+      console.log('API base URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api');
+
       try {
         setLoading(true); setError(null);
+        console.log('[AUTH DEBUG] STEP 13 — Calling dashboard APIs');
         const [dashboardData, settingData] = await Promise.all([adminAPI.getDashboard(), adminAPI.getSetting('registration_policy')]);
+        console.log('[AUTH DEBUG] Dashboard API SUCCESS');
+        console.log('Dashboard response:', dashboardData);
+        console.log('Settings response:', settingData);
         if (!mounted) return;
         const activities = Array.isArray(dashboardData?.recent_activities) ? dashboardData.recent_activities : [];
         setStats({
@@ -63,12 +73,14 @@ export default function DashboardPage() {
         const backendPolicy = settingData?.value;
         setRegistrationPolicy(backendPolicy === 'individual_ads' || backendPolicy === 'captain_ads' ? backendPolicy : DEFAULT_REGISTRATION_POLICY);
         setPolicyError(null);
+        console.log('[AUTH DEBUG] STEP 14 — Dashboard data loaded successfully');
       } catch (err) {
-        console.error('Error fetching admin dashboard data:', err);
+        console.error('[AUTH DEBUG] Dashboard API FAILED:', err);
         if (!mounted) return;
         setError('Failed to load dashboard data. Please try again.'); setStats(createEmptyDashboardStats()); setRecentActivities([]); setRegistrationPolicy(DEFAULT_REGISTRATION_POLICY); setPolicyError('Unable to load the current registration policy.');
       } finally {
         if (mounted) { setLoading(false); setPolicyLoading(false); }
+        console.groupEnd();
       }
     };
     fetchDashboardData();
