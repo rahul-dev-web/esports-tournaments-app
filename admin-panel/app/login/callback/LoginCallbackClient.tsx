@@ -15,6 +15,9 @@ export default function LoginCallbackClient() {
   const [message, setMessage] = useState('Completing sign in...');
 
   useEffect(() => {
+    console.log('[AUTH DEBUG 1] LoginCallbackClient mounted');
+    console.log('[AUTH DEBUG 1] Current URL:', window.location.href);
+
     const finish = async () => {
       if (!supabase) {
         setMessage('Supabase env vars are missing.');
