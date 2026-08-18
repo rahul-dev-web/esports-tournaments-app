@@ -19,11 +19,30 @@ final appRouter = GoRouter(
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final isLogin = state.matchedLocation == '/login';
-    if (session == null && !isLogin) return '/login';
-    if (session != null && isLogin) return '/';
+
+    debugPrint('[APP ROUTER 01] redirect() called');
+    debugPrint('[APP ROUTER 02] URI: ${Uri.base}');
+    debugPrint('[APP ROUTER 03] matchedLocation: ${state.matchedLocation}');
+    debugPrint('[APP ROUTER 04] fullPath: ${state.fullPath}');
+    debugPrint('[APP ROUTER 05] session: ${session != null ? 'FOUND' : 'NULL'}');
+    debugPrint('[APP ROUTER 06] isLogin: $isLogin');
+
+    if (session == null && !isLogin) {
+      debugPrint('[APP ROUTER 07] Redirecting -> /login because session is NULL');
+      return '/login';
+    }
+
+    if (session != null && isLogin) {
+      debugPrint('[APP ROUTER 08] Redirecting -> / because session is FOUND');
+      return '/';
+    }
+
+    debugPrint('[APP ROUTER 09] No redirect');
     return null;
   },
-  refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+  refreshListenable: GoRouterRefreshStream(
+    Supabase.instance.client.auth.onAuthStateChange,
+  ),
   routes: [
     GoRoute(path: '/', builder: (_, __) => const HomePage()),
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
@@ -39,7 +58,12 @@ final appRouter = GoRouter(
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+    _subscription = stream.asBroadcastStream().listen((authState) {
+      debugPrint('[APP ROUTER EVENT 01] Router auth stream event: ${authState.event}');
+      debugPrint('[APP ROUTER EVENT 02] Session: ${authState.session != null ? 'FOUND' : 'NULL'}');
+      debugPrint('[APP ROUTER EVENT 03] URI: ${Uri.base}');
+      notifyListeners();
+    });
   }
 
   late final StreamSubscription<dynamic> _subscription;
