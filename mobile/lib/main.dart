@@ -43,11 +43,32 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  debugPrint('[APP AUTH 00] ArenaHub main() started');
+  debugPrint('[APP AUTH 00] Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}');
+  debugPrint('[APP AUTH 00] Initial URI: ${Uri.base}');
+  debugPrint('[APP AUTH 00] OAuth redirect configured as: $oauthRedirectUrl');
+  debugPrint('[APP AUTH 00] Supabase URL configured: ${supabaseUrl.isNotEmpty}');
+
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabaseAnonKey,
     );
+
+    debugPrint('[APP AUTH 00] Supabase.initialize() completed');
+    debugPrint('[APP AUTH 00] Session immediately after initialization: ${Supabase.instance.client.auth.currentSession != null}');
+
+    Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
+      final session = authState.session;
+      debugPrint('[APP AUTH EVENT] ========================================');
+      debugPrint('[APP AUTH EVENT] Event: ${authState.event}');
+      debugPrint('[APP AUTH EVENT] URI: ${Uri.base}');
+      debugPrint('[APP AUTH EVENT] Session: ${session != null ? 'FOUND' : 'NULL'}');
+      debugPrint('[APP AUTH EVENT] User ID: ${session?.user.id ?? 'NULL'}');
+      debugPrint('[APP AUTH EVENT] Email: ${session?.user.email ?? 'NULL'}');
+      debugPrint('[APP AUTH EVENT] Access token: ${session?.accessToken.isNotEmpty == true ? 'PRESENT' : 'MISSING'}');
+      debugPrint('[APP AUTH EVENT] ========================================');
+    });
   }
 
   if (!kIsWeb) {
