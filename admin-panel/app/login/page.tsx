@@ -11,7 +11,14 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async () => {
+    console.group('[AUTH DEBUG] STEP 1 — LOGIN BUTTON');
+    console.log('Login button clicked');
+    console.log('Current URL:', window.location.href);
+    console.log('Origin:', window.location.origin);
+
     if (!supabase) {
+      console.error('[AUTH DEBUG] Supabase client is missing');
+      console.groupEnd();
       setError('Supabase environment variables are not configured.');
       return;
     }
@@ -20,22 +27,26 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const redirectTo =
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/login/callback`
-          : undefined;
+      const redirectTo = `${window.location.origin}/login/callback`;
+      console.log('[AUTH DEBUG] STEP 2 — OAuth configuration');
+      console.log('Provider: google');
+      console.log('redirectTo:', redirectTo);
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo,
-        },
+        options: { redirectTo },
       });
 
-      if (oauthError) {
-        throw oauthError;
-      }
+      console.log('[AUTH DEBUG] STEP 3 — signInWithOAuth returned');
+      console.log('OAuth data:', data);
+      console.log('OAuth error:', oauthError);
+      console.log('Browser should now navigate to Google OAuth.');
+      console.groupEnd();
+
+      if (oauthError) throw oauthError;
     } catch (err) {
+      console.error('[AUTH DEBUG] OAuth initiation failed:', err);
+      console.groupEnd();
       setError(err instanceof Error ? err.message : 'Login failed');
       setLoading(false);
       router.refresh();
@@ -55,9 +66,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-       <p className="mb-6 text-sm leading-6 text-white/70">
-  Sign in with your Google account. Only the authorized admin email can access the control panel.
-</p>
+        <p className="mb-6 text-sm leading-6 text-white/70">
+          Sign in with your Google account. Only the authorized admin email can access the control panel.
+        </p>
 
         {error ? (
           <div className="mb-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-100">
@@ -75,9 +86,9 @@ export default function LoginPage() {
           Continue with Google
         </button>
 
-       <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-white/60">
-  Only the Google account configured as the admin email in the backend can access this panel.
-</div>
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-white/60">
+          Only the Google account configured as the admin email in the backend can access this panel.
+        </div>
       </div>
     </main>
   );
