@@ -17,6 +17,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _signingIn = false;
 
   Future<void> _signIn() async {
+    debugPrint('OAUTH REDIRECT = $oauthRedirectUrl');
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
       _showMessage('Supabase is not configured for this build.');
       return;
