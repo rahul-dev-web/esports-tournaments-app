@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +26,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _signingIn = true);
 
     try {
+      debugPrint('OAUTH REDIRECT = $oauthRedirectUrl');
+
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: oauthRedirectUrl,
