@@ -18,7 +18,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _signingIn = false;
 
   Future<void> _signIn() async {
+    debugPrint('[APP AUTH 01] Google login button pressed');
+    debugPrint('[APP AUTH 02] Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}');
+    debugPrint('[APP AUTH 03] Current URL: ${Uri.base}');
+    debugPrint('[APP AUTH 04] OAuth redirect URL: $oauthRedirectUrl');
+    debugPrint('[APP AUTH 05] Supabase URL configured: ${supabaseUrl.isNotEmpty}');
+
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+      debugPrint('[APP AUTH ERROR] Supabase configuration is missing');
       _showMessage('Supabase is not configured for this build.');
       return;
     }
@@ -26,13 +33,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _signingIn = true);
 
     try {
-      debugPrint('OAUTH REDIRECT = $oauthRedirectUrl');
+      debugPrint('[APP AUTH 06] Calling Supabase signInWithOAuth(Google)...');
 
-      await Supabase.instance.client.auth.signInWithOAuth(
+      final result = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: oauthRedirectUrl,
       );
-    } catch (error) {
+
+      debugPrint('[APP AUTH 07] signInWithOAuth returned: $result');
+      debugPrint('[APP AUTH 08] URL immediately after OAuth call: ${Uri.base}');
+      debugPrint('[APP AUTH 09] Current Supabase session: ${Supabase.instance.client.auth.currentSession != null}');
+    } catch (error, stackTrace) {
+      debugPrint('[APP AUTH ERROR] signInWithOAuth failed: $error');
+      debugPrint('[APP AUTH ERROR] StackTrace: $stackTrace');
       if (mounted) _showMessage('Google sign-in failed: $error');
     } finally {
       if (mounted) setState(() => _signingIn = false);
@@ -46,7 +59,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authProvider, (previous, next) {
+      debugPrint('[APP AUTH 10] authProvider changed');
+      debugPrint('[APP AUTH 11] Previous: $previous');
+      debugPrint('[APP AUTH 12] Current: $next');
+
       if (next.hasError) {
+        debugPrint('[APP AUTH ERROR] authProvider error: ${next.error}');
         _showMessage('Account setup failed. Please try again.');
       }
     });
