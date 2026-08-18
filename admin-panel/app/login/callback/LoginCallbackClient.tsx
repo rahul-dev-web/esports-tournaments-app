@@ -15,80 +15,134 @@ export default function LoginCallbackClient() {
   const [message, setMessage] = useState('Completing sign in...');
 
   useEffect(() => {
-    console.log('[AUTH DEBUG 1] LoginCallbackClient mounted');
-    console.log('[AUTH DEBUG 1] Current URL:', window.location.href);
-
     const finish = async () => {
-      const showDebug = (text: string) => {
-        console.log('[AUTH DEBUG]', text);
-        setMessage(`AUTH DEBUG\n${text}`);
-      };
-
-      showDebug(`Callback page loaded\nURL: ${window.location.href}`);
+      console.group('[AUTH DEBUG] CALLBACK — STEP 4');
+      console.log('Callback page mounted');
+      console.log('Current URL:', window.location.href);
+      console.log('Path:', window.location.pathname);
+      console.log('Query string:', window.location.search);
+      console.log('Hash:', window.location.hash || '(empty)');
 
       if (!supabase) {
-        showDebug('ERROR: Supabase env vars are missing.');
+        console.error('[AUTH DEBUG] Supabase client is missing on callback');
+        console.groupEnd();
+        setMessage('Login callback error. Check browser console.');
         return;
       }
 
       const code = searchParams.get('code');
-      showDebug(`OAuth code: ${code ? 'PRESENT' : 'MISSING'}`);
+      const oauthError = searchParams.get('error');
+      const oauthErrorDescription = searchParams.get('error_description');
 
-      if (code) {
-        showDebug('Step 1: Exchanging OAuth code for Supabase session...');
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          showDebug(`ERROR during code exchange: ${error.message}`);
-          return;
-        }
-        showDebug('Step 1 SUCCESS: OAuth code exchanged.');
+      console.log('[AUTH DEBUG] STEP 5 — OAuth callback parameters');
+      console.log('OAuth code:', code ? 'PRESENT' : 'MISSING');
+      console.log('OAuth error:', oauthError || 'NONE');
+      console.log('OAuth error description:', oauthErrorDescription || 'NONE');
+
+      if (oauthError) {
+        console.error('[AUTH DEBUG] OAuth provider returned an error');
+        console.groupEnd();
+        setMessage('Google OAuth returned an error. Check browser console.');
+        return;
       }
 
-      showDebug('Step 2: Reading Supabase session...');
+      if (code) {
+        console.log('[AUTH DEBUG] STEP 6 — Exchanging OAuth code for Supabase session');
+        const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code);
+        console.log('Code exchange data:', exchangeData);
+        console.log('Code exchange error:', error);
+
+        if (error) {
+          console.error('[AUTH DEBUG] Code exchange FAILED:', error.message);
+          console.groupEnd();
+          setMessage('Session exchange failed. Check browser console.');
+          return;
+        }
+
+        console.log('[AUTH DEBUG] STEP 6 SUCCESS — OAuth code exchanged');
+      } else {
+        console.warn('[AUTH DEBUG] No OAuth code found. Checking existing session instead.');
+      }
+
+      console.log('[AUTH DEBUG] STEP 7 — Reading Supabase session');
       const { data, error: sessionError } = await supabase.auth.getSession();
+      console.log('getSession error:', sessionError);
+      console.log('Session found:', !!data.session);
+      console.log('User ID:', data.session?.user?.id || 'NONE');
+      console.log('User email:', data.session?.user?.email || 'NONE');
+      console.log('User provider:', data.session?.user?.app_metadata?.provider || 'NONE');
+      console.log('Access token:', data.session?.access_token ? 'PRESENT' : 'MISSING');
 
       if (sessionError) {
-        showDebug(`ERROR reading session: ${sessionError.message}`);
+        console.error('[AUTH DEBUG] Session read failed:', sessionError.message);
+        console.groupEnd();
+        setMessage('Session read failed. Check browser console.');
         return;
       }
 
       const token = data.session?.access_token;
-      showDebug(`Step 2 result: Session ${data.session ? 'FOUND' : 'NOT FOUND'}\nAccess token: ${token ? 'PRESENT' : 'MISSING'}`);
-
       if (!token) {
-        showDebug('STOP: No session found after OAuth redirect.');
+        console.error('[AUTH DEBUG] STOP — No Supabase access token after callback');
+        console.groupEnd();
+        setMessage('No Supabase session found. Check browser console.');
         return;
       }
 
       localStorage.setItem('adminToken', token);
-      showDebug('Step 3: adminToken stored in localStorage.');
+      console.log('[AUTH DEBUG] STEP 8 — adminToken stored in localStorage');
+      console.log('adminToken exists:', !!localStorage.getItem('adminToken'));
 
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-      showDebug(`Step 4: Checking admin permission...\nAPI: ${apiBaseUrl}/admin/me`);
+      console.log('[AUTH DEBUG] STEP 9 — Checking backend admin permission');
+      console.log('API base URL:', apiBaseUrl);
+      console.log('Endpoint:', `${apiBaseUrl}/admin/me`);
 
       try {
         const response = await fetch(`${apiBaseUrl}/admin/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        showDebug(`Step 4 result: /admin/me returned HTTP ${response.status}`);
+        console.log('[AUTH DEBUG] /admin/me response');
+        console.log('HTTP status:', response.status);
+        console.log('HTTP ok:', response.ok);
+        console.log('Response URL:', response.url);
+
+        const responseText = await response.text();
+        console.log('Response body:', responseText);
 
         if (!response.ok) {
           localStorage.removeItem('adminToken');
-          showDebug(`ACCESS DENIED: User is not an admin.\nHTTP status: ${response.status}\nRedirect to dashboard will NOT happen.`);
+          console.warn('[AUTH DEBUG] STEP 10 — ADMIN CHECK FAILED');
+          console.warn('User is authenticated with Google but backend rejected admin access.');
+          console.log('adminToken after removal:', !!localStorage.getItem('adminToken'));
+          console.groupEnd();
+          setMessage('Authenticated, but NOT an admin. Check browser console.');
           return;
         }
 
-        const profile = await response.json() as AdminProfile;
-        showDebug(`ADMIN VERIFIED: ${profile.email}\nStep 5: Redirecting to /dashboard...`);
+        let profile: AdminProfile;
+        try {
+          profile = JSON.parse(responseText) as AdminProfile;
+        } catch {
+          console.error('[AUTH DEBUG] Could not parse /admin/me response as JSON');
+          console.groupEnd();
+          setMessage('Admin response parsing failed. Check browser console.');
+          return;
+        }
 
+        console.log('[AUTH DEBUG] STEP 10 SUCCESS — ADMIN VERIFIED');
+        console.log('Admin profile:', profile);
+        console.log('Verified admin email:', profile.email);
+        console.log('[AUTH DEBUG] STEP 11 — Redirecting to /dashboard');
+
+        console.groupEnd();
         router.replace('/dashboard');
         router.refresh();
       } catch (error) {
         localStorage.removeItem('adminToken');
-        showDebug(`ERROR calling /admin/me: ${error instanceof Error ? error.message : String(error)}`);
+        console.error('[AUTH DEBUG] Backend admin check threw an exception:', error);
+        console.groupEnd();
+        setMessage('Backend admin check failed. Check browser console.');
       }
     };
 
@@ -97,9 +151,9 @@ export default function LoginCallbackClient() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-      <pre className="whitespace-pre-wrap text-sm text-white/80 max-w-2xl w-full rounded-lg bg-white/5 p-5 border border-white/10">
-        {message}
-      </pre>
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/70">
+        Completing sign in...
+      </div>
     </main>
   );
 }
