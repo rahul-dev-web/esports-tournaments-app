@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,19 +43,11 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  debugPrint('[AUTH_DEBUG] ===== APP START =====');
-  debugPrint('[AUTH_DEBUG] supabaseConfigured=${supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty}');
-  debugPrint('[AUTH_DEBUG] supabaseUrl=$supabaseUrl');
-  debugPrint('[AUTH_DEBUG] oauthRedirectUrl=$oauthRedirectUrl');
-
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabaseAnonKey,
     );
-
-    debugPrint('[AUTH_DEBUG] Supabase.initialize() completed');
-    debugPrint('[AUTH_DEBUG] initialSession=${Supabase.instance.client.auth.currentSession != null}');
   }
 
   if (!kIsWeb) {
@@ -87,29 +77,12 @@ class ArenaHubApp extends ConsumerStatefulWidget {
 }
 
 class _ArenaHubAppState extends ConsumerState<ArenaHubApp> {
-  StreamSubscription<AuthState>? _authDebugSubscription;
-
   @override
   void initState() {
     super.initState();
-
     if (!kIsWeb && supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
       ref.read(pushNotificationServiceProvider).initialize();
     }
-
-    _authDebugSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((authState) {
-      debugPrint(
-        '[AUTH_DEBUG] GLOBAL AUTH EVENT: event=${authState.event.name}, session=${authState.session != null}',
-      );
-      debugPrint('[AUTH_DEBUG] GLOBAL AUTH USER PRESENT=${authState.session?.user != null}');
-    });
-  }
-
-  @override
-  void dispose() {
-    debugPrint('[AUTH_DEBUG] ArenaHubApp disposed; cancelling global auth debug listener');
-    _authDebugSubscription?.cancel();
-    super.dispose();
   }
 
   @override
