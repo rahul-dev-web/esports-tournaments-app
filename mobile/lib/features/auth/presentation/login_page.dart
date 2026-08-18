@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -17,7 +18,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _signingIn = false;
 
   Future<void> _signIn() async {
+    debugPrint('[AUTH_DEBUG] ===== GOOGLE SIGN-IN START =====');
+    debugPrint('[AUTH_DEBUG] platform=${defaultTargetPlatform.name}');
+    debugPrint('[AUTH_DEBUG] supabaseConfigured=${supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty}');
+    debugPrint('[AUTH_DEBUG] supabaseUrl=$supabaseUrl');
+    debugPrint('[AUTH_DEBUG] oauthRedirectUrl=$oauthRedirectUrl');
+    debugPrint('[AUTH_DEBUG] currentSessionBefore=${Supabase.instance.client.auth.currentSession != null}');
+
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+      debugPrint('[AUTH_DEBUG] ERROR: Supabase is not configured.');
       _showMessage('Supabase is not configured for this build.');
       return;
     }
@@ -25,11 +34,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _signingIn = true);
 
     try {
-      await Supabase.instance.client.auth.signInWithOAuth(
+      final result = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: oauthRedirectUrl,
       );
-    } catch (error) {
+
+      debugPrint('[AUTH_DEBUG] signInWithOAuth returned=$result');
+      debugPrint('[AUTH_DEBUG] currentSessionImmediatelyAfter=${Supabase.instance.client.auth.currentSession != null}');
+      debugPrint('[AUTH_DEBUG] ===== GOOGLE SIGN-IN BROWSER OPENED =====');
+    } catch (error, stackTrace) {
+      debugPrint('[AUTH_DEBUG] SIGN-IN EXCEPTION: $error');
+      debugPrint('[AUTH_DEBUG] STACK: $stackTrace');
       if (mounted) _showMessage('Google sign-in failed: $error');
     } finally {
       if (mounted) setState(() => _signingIn = false);
@@ -43,7 +58,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authProvider, (previous, next) {
+      debugPrint('[AUTH_DEBUG] authProvider changed: previous=${previous?.runtimeType}, next=${next.runtimeType}');
       if (next.hasError) {
+        debugPrint('[AUTH_DEBUG] authProvider error=${next.error}');
         _showMessage('Account setup failed. Please try again.');
       }
     });
