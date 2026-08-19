@@ -66,27 +66,41 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         debugPrint('[APP AUTH MOBILE 06] GoogleSignIn initialized');
         debugPrint('[APP AUTH MOBILE 07] Starting Google account authentication...');
 
+        if (!googleSignIn.supportsAuthenticate()) {
+          throw const AuthException(
+            'Google Sign-In authentication is not supported on this platform.',
+          );
+        }
+
         final googleAccount = await googleSignIn.authenticate();
 
         debugPrint('[APP AUTH MOBILE 08] Google authentication completed');
         debugPrint('[APP AUTH MOBILE 09] Google email: ${googleAccount.email}');
 
-        // Supabase's native Google flow needs both the Google ID token and
-        // an OAuth access token. In google_sign_in 7.x, the ID token is exposed
-        // through authentication and the access token through authorizationClient.
-        final googleAuthentication = googleAccount.authentication;
+        // google_sign_in 7.x separates authentication from authorization.
+        // Supabase requires a Google access token in addition to the ID token,
+        // so request the standard OpenID Connect profile scopes before calling
+        // Supabase signInWithIdToken().
+        const googleScopes = <String>[
+          'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/userinfo.profile',
+          'openid',
+        ];
+
+        debugPrint('[APP AUTH MOBILE 10] Requesting Google authorization for ${googleScopes.length} scopes');
+
         var googleAuthorization = await googleAccount.authorizationClient
-            .authorizationForScopes(const <String>[]);
+            .authorizationForScopes(googleScopes);
 
-        debugPrint('[APP AUTH MOBILE 10] Google ID token: ${googleAuthentication.idToken != null ? 'PRESENT' : 'MISSING'}');
-        debugPrint('[APP AUTH MOBILE 11] Google access token from cached authorization: ${googleAuthorization?.accessToken != null ? 'PRESENT' : 'MISSING'}');
+        debugPrint('[APP AUTH MOBILE 11] Cached Google access token: ${googleAuthorization?.accessToken != null ? 'PRESENT' : 'MISSING'}');
 
-        if (googleAuthorization == null) {
-          debugPrint('[APP AUTH MOBILE 12] Requesting Google authorization token...');
+        if (googleAuthorization == null || googleAuthorization.accessToken.isEmpty) {
+          debugPrint('[APP AUTH MOBILE 12] Requesting Google authorization interactively...');
           googleAuthorization = await googleAccount.authorizationClient
-              .authorizeScopes(const <String>[]);
+              .authorizeScopes(googleScopes);
         }
 
+        final googleAuthentication = googleAccount.authentication;
         final idToken = googleAuthentication.idToken;
         final accessToken = googleAuthorization.accessToken;
 
