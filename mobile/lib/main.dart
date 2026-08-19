@@ -53,9 +53,16 @@ Future<void> main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabaseAnonKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+        detectSessionInUri: true,
+      ),
     );
 
     debugPrint('[APP AUTH 00] Supabase.initialize() completed');
+    debugPrint('[APP AUTH 00] Supabase initialized: ${Supabase.instance.isInitialized}');
+    debugPrint('[APP AUTH 00] Auth flow: PKCE');
+    debugPrint('[APP AUTH 00] Deep-link/session URI detection: enabled');
     debugPrint('[APP AUTH 00] Session immediately after initialization: ${Supabase.instance.client.auth.currentSession != null}');
 
     Supabase.instance.client.auth.onAuthStateChange.listen((authState) {

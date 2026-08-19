@@ -18,11 +18,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   bool _signingIn = false;
 
   Future<void> _signIn() async {
+    final redirectTo = kIsWeb ? Uri.base.origin : oauthRedirectUrl;
+
     debugPrint('[APP AUTH 01] Google login button pressed');
     debugPrint('[APP AUTH 02] Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}');
     debugPrint('[APP AUTH 03] Current URL: ${Uri.base}');
-    debugPrint('[APP AUTH 04] OAuth redirect URL: $oauthRedirectUrl');
-    debugPrint('[APP AUTH 05] Supabase URL configured: ${supabaseUrl.isNotEmpty}');
+    debugPrint('[APP AUTH 04] Mobile OAuth redirect URL: $oauthRedirectUrl');
+    debugPrint('[APP AUTH 05] Actual redirectTo for this platform: $redirectTo');
+    debugPrint('[APP AUTH 06] Supabase URL configured: ${supabaseUrl.isNotEmpty}');
 
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
       debugPrint('[APP AUTH ERROR] Supabase configuration is missing');
@@ -33,16 +36,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _signingIn = true);
 
     try {
-      debugPrint('[APP AUTH 06] Calling Supabase signInWithOAuth(Google)...');
+      debugPrint('[APP AUTH 07] Calling Supabase signInWithOAuth(Google)...');
 
       final result = await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: oauthRedirectUrl,
+        redirectTo: redirectTo,
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
       );
 
-      debugPrint('[APP AUTH 07] signInWithOAuth returned: $result');
-      debugPrint('[APP AUTH 08] URL immediately after OAuth call: ${Uri.base}');
-      debugPrint('[APP AUTH 09] Current Supabase session: ${Supabase.instance.client.auth.currentSession != null}');
+      debugPrint('[APP AUTH 08] signInWithOAuth returned: $result');
+      debugPrint('[APP AUTH 09] URL immediately after OAuth call: ${Uri.base}');
+      debugPrint('[APP AUTH 10] Current Supabase session: ${Supabase.instance.client.auth.currentSession != null}');
     } catch (error, stackTrace) {
       debugPrint('[APP AUTH ERROR] signInWithOAuth failed: $error');
       debugPrint('[APP AUTH ERROR] StackTrace: $stackTrace');
@@ -59,9 +65,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   @override
   Widget build(BuildContext context) {
     ref.listen(authProvider, (previous, next) {
-      debugPrint('[APP AUTH 10] authProvider changed');
-      debugPrint('[APP AUTH 11] Previous: $previous');
-      debugPrint('[APP AUTH 12] Current: $next');
+      debugPrint('[APP AUTH 11] authProvider changed');
+      debugPrint('[APP AUTH 12] Previous: $previous');
+      debugPrint('[APP AUTH 13] Current: $next');
 
       if (next.hasError) {
         debugPrint('[APP AUTH ERROR] authProvider error: ${next.error}');

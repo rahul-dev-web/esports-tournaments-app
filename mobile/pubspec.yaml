@@ -15,7 +15,7 @@ dependencies:
   http: ^1.5.0
   google_mobile_ads: ^7.0.0
   image_picker: ^1.1.2
-  supabase_flutter: ^2.9.1
+  supabase_flutter: ^2.17.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

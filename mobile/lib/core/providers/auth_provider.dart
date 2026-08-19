@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -24,12 +25,22 @@ class AuthController extends AsyncNotifier<UserProfile?> {
       _subscription?.cancel();
     });
 
+    // Subscribe even when there is no session yet. The OAuth flow starts with
+    // a null session and establishes the session later when the deep-link
+    // callback returns to the app.
+    _subscription = _supabase.auth.onAuthStateChange.listen((authState) {
+      debugPrint('[APP AUTH PROVIDER] Event: ${authState.event}');
+      debugPrint('[APP AUTH PROVIDER] Session: ${authState.session != null ? 'FOUND' : 'NULL'}');
+
+      // The initial session is already handled below. All later auth events
+      // must refresh the profile, including SIGNED_IN after OAuth callback.
+      if (authState.event != AuthChangeEvent.initialSession) {
+        unawaited(refresh());
+      }
+    });
+
     final session = _supabase.auth.currentSession;
     if (session == null) return null;
-
-    _subscription = _supabase.auth.onAuthStateChange.listen((_) {
-      unawaited(refresh());
-    });
 
     return _loadProfile();
   }
