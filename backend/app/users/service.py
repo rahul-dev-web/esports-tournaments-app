@@ -51,6 +51,7 @@ class UserService:
         update_fields = update_data.model_dump(exclude_unset=True)
         username = update_fields.get("username")
         bio = update_fields.get("bio")
+        requested_uid = update_fields.get("in_game_uid")
 
         if username is not None:
             valid, error = UserService.validate_username(username)
@@ -63,7 +64,17 @@ class UserService:
         if bio is not None and len(bio) > 500:
             return None, "Bio must be at most 500 characters"
 
-        updated_user = UserRepository.update_user_profile(db, user_id, update_data)
+        # Game UID is a one-time identity binding. A new user may set it once;
+        # once present it can never be changed or cleared through this API.
+        if "in_game_uid" in update_fields:
+            normalized_uid = str(requested_uid or "").strip()
+            if not normalized_uid:
+                return None, "In-game UID is required when setting it"
+            if user.in_game_uid and user.in_game_uid != normalized_uid:
+                return None, "In-game UID cannot be changed after it is set"
+            update_fields["in_game_uid"] = normalized_uid
+
+        updated_user = UserRepository.update_user_profile(db, user_id, update_data.model_copy(update=update_fields))
         if not updated_user:
             return None, "Failed to update profile"
 
