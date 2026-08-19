@@ -46,8 +46,17 @@ Future<void> main() async {
   debugPrint('[APP AUTH 00] ArenaHub main() started');
   debugPrint('[APP AUTH 00] Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}');
   debugPrint('[APP AUTH 00] Initial URI: ${Uri.base}');
-  debugPrint('[APP AUTH 00] OAuth redirect configured as: $oauthRedirectUrl');
   debugPrint('[APP AUTH 00] Supabase URL configured: ${supabaseUrl.isNotEmpty}');
+
+  if (kIsWeb) {
+    debugPrint('[APP AUTH 00] Web Google auth: Supabase OAuth redirect flow');
+    debugPrint('[APP AUTH 00] Web OAuth origin will be used as redirectTo');
+  } else {
+    debugPrint('[APP AUTH 00] Mobile Google auth: native Google Sign-In + Supabase ID token');
+    debugPrint('[APP AUTH 00] Google Web client ID configured: ${googleWebClientId.isNotEmpty}');
+    debugPrint('[APP AUTH 00] Google Android client ID configured: ${googleAndroidClientId.isNotEmpty}');
+    debugPrint('[APP AUTH 00] Mobile custom OAuth callback retained for other OAuth flows: $oauthRedirectUrl');
+  }
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(
