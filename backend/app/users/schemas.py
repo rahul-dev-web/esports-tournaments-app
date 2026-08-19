@@ -18,6 +18,9 @@ class UpdateUserProfileRequest(BaseModel):
     photo_url: Optional[str] = Field(None, max_length=1000)
     preferred_game: Optional[str] = Field(None, max_length=100)
     social_links: Optional[dict[str, str]] = None
+    # The in-game UID may be set once during profile setup, but is immutable
+    # after it has been saved. The service layer enforces that rule.
+    in_game_uid: Optional[str] = Field(None, min_length=1, max_length=100)
 
     model_config = ConfigDict(extra="ignore")
 
