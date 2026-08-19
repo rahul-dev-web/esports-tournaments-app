@@ -23,6 +23,22 @@ const String oauthRedirectUrl = String.fromEnvironment(
   defaultValue: 'com.arenahub.arenahub_mobile://login-callback/',
 );
 
+// Google OAuth client IDs used by the native Google -> Supabase ID-token flow.
+// The Web client ID is the serverClientId required by google_sign_in on Android
+// when google-services.json is not being used to provide default_web_client_id.
+const String googleWebClientId = String.fromEnvironment(
+  'GOOGLE_WEB_CLIENT_ID',
+  defaultValue: '183681227119-rgc9qps6lqdcc2kjbqd9j0tq11tba40r.apps.googleusercontent.com',
+);
+
+// Registered in Google Cloud for package com.arenahub.arenahub_mobile.
+// Android resolves this client through the package name + signing certificate;
+// it is intentionally NOT passed to Supabase as the serverClientId.
+const String googleAndroidClientId = String.fromEnvironment(
+  'GOOGLE_ANDROID_CLIENT_ID',
+  defaultValue: '183681227119-qj2i2f62kardgcguq9epc8vrc18p1qnt.apps.googleusercontent.com',
+);
+
 const String firebaseApiKey = String.fromEnvironment(
   'FIREBASE_API_KEY',
   defaultValue: 'AIzaSyA_FZ0-y0B3HBJAMfFa7Pj5dNzi3NU6vrI',
