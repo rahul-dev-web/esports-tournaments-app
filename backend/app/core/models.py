@@ -10,11 +10,17 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, event, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
 from app.core.database import Base
+
+
+FREE_FIRE = "Free Fire"
+MAX_TEAM_MEMBERS = 6
+MAX_CUSTOM_TOURNAMENT_SIZE = 5
+FREE_FIRE_MODES = ("Battle Royale", "CS")
 
 
 class GUID(TypeDecorator):
@@ -54,7 +60,7 @@ class User(TimestampMixin, Base):
     city: Mapped[str] = mapped_column(String(100), default="", nullable=False)
     photo_url: Mapped[str | None] = mapped_column(String(1000))
     social_links: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
-    preferred_game: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    preferred_game: Mapped[str] = mapped_column(String(100), default=FREE_FIRE, nullable=False)
     in_game_uid: Mapped[str | None] = mapped_column(String(100), nullable=True)
     role: Mapped[RoleEnum] = mapped_column(SAEnum(RoleEnum, name="app_role"), default=RoleEnum.user, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -66,7 +72,7 @@ class Team(TimestampMixin, Base):
     __tablename__ = "teams"
     id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(60), index=True, nullable=False)
-    game: Mapped[str] = mapped_column(String(100), nullable=False)
+    game: Mapped[str] = mapped_column(String(100), default=FREE_FIRE, nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(1000))
     captain_id: Mapped[str] = mapped_column(GUID(), ForeignKey("profiles.id"), nullable=False)
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -87,6 +93,18 @@ class TeamMember(Base):
     user: Mapped[User] = relationship(back_populates="team_memberships")
 
 
+@event.listens_for(TeamMember, "before_insert")
+def enforce_team_member_limit(mapper, connection, target: TeamMember) -> None:
+    """Keep the six-player roster limit enforced for every backend write path."""
+    member_count = connection.execute(
+        select(func.count())
+        .select_from(TeamMember)
+        .where(TeamMember.team_id == target.team_id)
+    ).scalar_one()
+    if member_count >= MAX_TEAM_MEMBERS:
+        raise ValueError(f"A team cannot have more than {MAX_TEAM_MEMBERS} members")
+
+
 class TeamInvitation(TimestampMixin, Base):
     __tablename__ = "team_invitations"
     id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -105,7 +123,7 @@ class Tournament(TimestampMixin, Base):
     __tablename__ = "tournaments"
     id: Mapped[str] = mapped_column(GUID(), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
-    game: Mapped[str] = mapped_column(String(100), nullable=False)
+    game: Mapped[str] = mapped_column(String(100), default=FREE_FIRE, nullable=False)
     mode: Mapped[str] = mapped_column(String(50), nullable=False)
     tournament_type: Mapped[TournamentTypeEnum] = mapped_column(SAEnum(TournamentTypeEnum, name="tournament_type"), default=TournamentTypeEnum.custom, nullable=False)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
