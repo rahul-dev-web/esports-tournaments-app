@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+FREE_FIRE = "Free Fire"
+FREE_FIRE_MODES = ("Battle Royale", "CS")
 
 
 class Role(str, Enum):
@@ -62,7 +66,7 @@ class UserProfile(BaseModel):
     city: str | None = ""
     photo_url: str | None = None
     social_links: dict[str, Any] = Field(default_factory=dict)
-    preferred_game: str | None = ""
+    preferred_game: Literal["Free Fire"] = FREE_FIRE
     in_game_uid: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -76,13 +80,13 @@ class UserProfileUpdate(BaseModel):
     state: str | None = None
     city: str | None = None
     photo_url: str | None = None
-    preferred_game: str | None = None
+    preferred_game: Literal["Free Fire"] = FREE_FIRE
     social_links: dict[str, Any] | None = None
 
 
 class TeamCreate(BaseModel):
     name: str = Field(min_length=2, max_length=60)
-    game: str
+    game: Literal["Free Fire"] = FREE_FIRE
     is_private: bool = False
     logo_url: str | None = None
 
@@ -92,7 +96,7 @@ class Team(BaseModel):
 
     id: str
     name: str
-    game: str
+    game: Literal["Free Fire"] = FREE_FIRE
     captain_id: str
     member_ids: list[str] = Field(default_factory=list)
     is_private: bool = False
@@ -103,8 +107,8 @@ class Team(BaseModel):
 
 class TournamentCreate(BaseModel):
     name: str = Field(min_length=3, max_length=120)
-    game: str
-    mode: str
+    game: Literal["Free Fire"] = FREE_FIRE
+    mode: Literal["Battle Royale", "CS"]
     tournament_type: TournamentType = TournamentType.custom
     starts_at: datetime
     entry_requirement: str | None = ""
@@ -112,9 +116,24 @@ class TournamentCreate(BaseModel):
     status: TournamentStatus = TournamentStatus.draft
     total_slots: int = Field(gt=0)
     registered_teams: int = 0
-    team_size: int = Field(default=1, ge=1)
+    team_size: int = Field(default=1, ge=1, le=5)
     ads_required: int = Field(default=0, ge=0)
     policy: RegistrationPolicy = RegistrationPolicy.individual
+
+    @model_validator(mode="after")
+    def validate_team_size(self) -> "TournamentCreate":
+        required_size = {
+            TournamentType.solo: 1,
+            TournamentType.duo: 2,
+            TournamentType.squad: 4,
+        }
+        if self.tournament_type in required_size:
+            expected = required_size[self.tournament_type]
+            if self.team_size != expected:
+                self.team_size = expected
+        elif self.team_size > 5:
+            raise ValueError("Custom tournament team size cannot exceed 5 players")
+        return self
 
 
 class Tournament(TournamentCreate):
@@ -257,12 +276,7 @@ class TeamInvitationList(BaseModel):
 
 
 class SettingCreate(BaseModel):
-    """Payload accepted by the admin settings create/update endpoint.
-
-    The setting key is supplied by the URL for PATCH /settings/{key}, so it is
-    optional in the request body. Keeping it optional also prevents the admin
-    panel from having to duplicate the same key in both URL and JSON body.
-    """
+    """Payload accepted by the admin settings create/update endpoint."""
 
     key: str | None = Field(default=None, min_length=1, max_length=100)
     value: Any
@@ -294,5 +308,5 @@ class SettingsDict(BaseModel):
 
     ads_per_registration: int = 2
     registration_policy: str = "individual_ads"
-    max_team_size: int = 5
+    max_team_size: int = 6
     tournament_registration_timeout: int = 24
