@@ -14,10 +14,7 @@ import 'core/theme/app_theme.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
 FirebaseOptions? _firebaseWebOptions() {
-  if (firebaseApiKey.isEmpty ||
-      firebaseProjectId.isEmpty ||
-      firebaseMessagingSenderId.isEmpty ||
-      firebaseAppId.isEmpty) {
+  if (firebaseApiKey.isEmpty || firebaseProjectId.isEmpty || firebaseMessagingSenderId.isEmpty || firebaseAppId.isEmpty) {
     return null;
   }
 
@@ -32,13 +29,11 @@ FirebaseOptions? _firebaseWebOptions() {
   );
 }
 
-final pushNotificationServiceProvider = Provider<PushNotificationService>(
-  (ref) {
-    final service = PushNotificationService(ApiClient());
-    ref.onDispose(service.dispose);
-    return service;
-  },
-);
+final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
+  final service = PushNotificationService(ApiClient());
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,16 +42,6 @@ Future<void> main() async {
   debugPrint('[APP AUTH 00] Platform: ${kIsWeb ? 'WEB' : 'MOBILE'}');
   debugPrint('[APP AUTH 00] Initial URI: ${Uri.base}');
   debugPrint('[APP AUTH 00] Supabase URL configured: ${supabaseUrl.isNotEmpty}');
-
-  if (kIsWeb) {
-    debugPrint('[APP AUTH 00] Web Google auth: Supabase OAuth redirect flow');
-    debugPrint('[APP AUTH 00] Web OAuth origin will be used as redirectTo');
-  } else {
-    debugPrint('[APP AUTH 00] Mobile Google auth: native Google Sign-In + Supabase ID token');
-    debugPrint('[APP AUTH 00] Google Web client ID configured: ${googleWebClientId.isNotEmpty}');
-    debugPrint('[APP AUTH 00] Google Android client ID configured: ${googleAndroidClientId.isNotEmpty}');
-    debugPrint('[APP AUTH 00] Mobile custom OAuth callback retained for other OAuth flows: $oauthRedirectUrl');
-  }
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     await Supabase.initialize(
@@ -87,22 +72,9 @@ Future<void> main() async {
     });
   }
 
-  if (!kIsWeb) {
-    await MobileAds.instance.initialize();
-  }
-
-  if (kIsWeb) {
-    final options = _firebaseWebOptions();
-    if (options != null) {
-      await Firebase.initializeApp(options: options);
-    } else {
-      debugPrint('Firebase web options are not configured; skipping Firebase.initializeApp() on web.');
-    }
-  } else {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  }
-
+  // Supabase is required before routing/auth can start. Firebase, FCM and
+  // AdMob are not required to draw the first screen, so they are initialized
+  // after runApp to release the native launch screen as early as possible.
   runApp(const ProviderScope(child: ArenaHubApp()));
 }
 
@@ -117,8 +89,30 @@ class _ArenaHubAppState extends ConsumerState<ArenaHubApp> {
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb && supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
-      ref.read(pushNotificationServiceProvider).initialize();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeDeferredServices();
+    });
+  }
+
+  Future<void> _initializeDeferredServices() async {
+    try {
+      if (kIsWeb) {
+        final options = _firebaseWebOptions();
+        if (options != null && Firebase.apps.isEmpty) {
+          await Firebase.initializeApp(options: options);
+        }
+        return;
+      }
+
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp();
+      }
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      await MobileAds.instance.initialize();
+      await ref.read(pushNotificationServiceProvider).initialize();
+    } catch (error, stackTrace) {
+      debugPrint('[APP STARTUP] Deferred service initialization failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
