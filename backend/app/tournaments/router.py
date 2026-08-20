@@ -81,6 +81,43 @@ def _notify_registered_teams(
     )
 
 
+def _safe_notify_published_tournament(db: Session, tournament: Tournament) -> None:
+    """Best-effort notification; never fail a successful tournament write."""
+    try:
+        _notify_published_tournament(db, tournament)
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Tournament %s was created/published, but publish notification failed",
+            tournament.id,
+        )
+
+
+def _safe_notify_registered_teams(
+    db: Session,
+    tournament: Tournament,
+    *,
+    title: str,
+    body: str,
+    notification_type: str,
+) -> None:
+    """Best-effort lifecycle notification; never fail a tournament update."""
+    try:
+        _notify_registered_teams(
+            db,
+            tournament,
+            title=title,
+            body=body,
+            notification_type=notification_type,
+        )
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Tournament %s changed successfully, but lifecycle notification failed",
+            tournament.id,
+        )
+
+
 @router.post("", response_model=TournamentSchema, tags=["tournaments"])
 async def create_tournament(
     payload: TournamentCreate,
@@ -109,8 +146,12 @@ async def create_tournament(
     db.commit()
     db.refresh(tournament)
 
+    # The tournament is already committed at this point. Notification delivery
+    # is deliberately best-effort so an FCM/notification DB problem cannot
+    # turn a successful create into HTTP 500 and cause the admin UI to retry,
+    # creating duplicate tournaments.
     if tournament.status == TournamentStatusEnum.published:
-        _notify_published_tournament(db, tournament)
+        _safe_notify_published_tournament(db, tournament)
 
     logger.info("Tournament %s created by admin %s", tournament.id, user_id)
     return TournamentSchema.from_orm(tournament)
@@ -178,9 +219,9 @@ async def update_tournament(
     db.refresh(tournament)
 
     if old_status != TournamentStatusEnum.published and tournament.status == TournamentStatusEnum.published:
-        _notify_published_tournament(db, tournament)
+        _safe_notify_published_tournament(db, tournament)
     elif old_status == TournamentStatusEnum.published and tournament.status == TournamentStatusEnum.closed:
-        _notify_registered_teams(
+        _safe_notify_registered_teams(
             db,
             tournament,
             title="Tournament Closed",
@@ -192,7 +233,7 @@ async def update_tournament(
         and tournament.status == TournamentStatusEnum.published
         and old_starts_at != tournament.starts_at
     ):
-        _notify_registered_teams(
+        _safe_notify_registered_teams(
             db,
             tournament,
             title="Tournament Schedule Updated",
@@ -231,9 +272,9 @@ async def change_tournament_status(
     db.refresh(tournament)
 
     if old_status != TournamentStatusEnum.published and tournament.status == TournamentStatusEnum.published:
-        _notify_published_tournament(db, tournament)
+        _safe_notify_published_tournament(db, tournament)
     elif old_status == TournamentStatusEnum.published and tournament.status == TournamentStatusEnum.closed:
-        _notify_registered_teams(
+        _safe_notify_registered_teams(
             db,
             tournament,
             title="Tournament Closed",
