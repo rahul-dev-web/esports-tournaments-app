@@ -41,7 +41,6 @@ class TeamRemoteDataSource {
   Future<Map<String, dynamic>> createTeam(
     String token, {
     required String name,
-    required String game,
     required bool isPrivate,
     String? logoUrl,
   }) async {
@@ -50,7 +49,6 @@ class TeamRemoteDataSource {
       headers: _authHeaders(token),
       body: jsonEncode({
         'name': name.trim(),
-        'game': game.trim(),
         'is_private': isPrivate,
         'logo_url': logoUrl,
       }),
@@ -62,7 +60,6 @@ class TeamRemoteDataSource {
     String token,
     String teamId, {
     required String name,
-    required String game,
     required bool isPrivate,
     String? logoUrl,
   }) async {
@@ -71,7 +68,6 @@ class TeamRemoteDataSource {
       headers: _authHeaders(token),
       body: jsonEncode({
         'name': name.trim(),
-        'game': game.trim(),
         'is_private': isPrivate,
         'logo_url': logoUrl,
       }),
@@ -89,12 +85,7 @@ class TeamRemoteDataSource {
     }
   }
 
-  /// Backend join flow: POST /teams/{team_id}/members/{current_user_id}.
-  Future<Map<String, dynamic>> joinTeam(
-    String token,
-    String teamId,
-    String userId,
-  ) async {
+  Future<Map<String, dynamic>> joinTeam(String token, String teamId, String userId) async {
     final response = await http.post(
       Uri.parse('$baseUrl/teams/$teamId/members/$userId'),
       headers: _authHeaders(token),
@@ -111,17 +102,12 @@ class TeamRemoteDataSource {
     final response = await http.post(
       Uri.parse('$baseUrl/teams/$teamId/invitations'),
       headers: _authHeaders(token),
-      body: jsonEncode({
-        'receiver_id': receiverId,
-        'message': message,
-      }),
+      body: jsonEncode({'receiver_id': receiverId, 'message': message}),
     );
     return _decodeMap(response, fallback: 'Failed to send invitation');
   }
 
-  Future<List<Map<String, dynamic>>> getReceivedInvitations(
-    String token,
-  ) async {
+  Future<List<Map<String, dynamic>>> getReceivedInvitations(String token) async {
     final response = await http.get(
       Uri.parse('$baseUrl/teams/invitations/received'),
       headers: _authHeaders(token),
@@ -129,10 +115,7 @@ class TeamRemoteDataSource {
     return _decodeList(response, fallback: 'Failed to load invitations');
   }
 
-  Future<List<Map<String, dynamic>>> getTeamInvitations(
-    String token,
-    String teamId,
-  ) async {
+  Future<List<Map<String, dynamic>>> getTeamInvitations(String token, String teamId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/teams/$teamId/invitations'),
       headers: _authHeaders(token),
@@ -160,11 +143,7 @@ class TeamRemoteDataSource {
     }
   }
 
-  Future<void> removeMember(
-    String token,
-    String teamId,
-    String memberUserId,
-  ) async {
+  Future<void> removeMember(String token, String teamId, String memberUserId) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/teams/$teamId/members/$memberUserId'),
       headers: _authHeaders(token),
@@ -174,10 +153,7 @@ class TeamRemoteDataSource {
     }
   }
 
-  Future<List<Map<String, dynamic>>> searchUsers(
-    String token,
-    String query,
-  ) async {
+  Future<List<Map<String, dynamic>>> searchUsers(String token, String query) async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/search?q=${Uri.encodeQueryComponent(query)}'),
       headers: _authHeaders(token),
@@ -191,10 +167,7 @@ class TeamRemoteDataSource {
         'Content-Type': 'application/json',
       };
 
-  List<Map<String, dynamic>> _decodeList(
-    http.Response response, {
-    required String fallback,
-  }) {
+  List<Map<String, dynamic>> _decodeList(http.Response response, {required String fallback}) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(_errorMessage(response, fallback));
     }
@@ -203,10 +176,7 @@ class TeamRemoteDataSource {
     return List<Map<String, dynamic>>.from(data);
   }
 
-  Map<String, dynamic> _decodeMap(
-    http.Response response, {
-    required String fallback,
-  }) {
+  Map<String, dynamic> _decodeMap(http.Response response, {required String fallback}) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(_errorMessage(response, fallback));
     }
@@ -218,9 +188,7 @@ class TeamRemoteDataSource {
   String _errorMessage(http.Response response, String fallback) {
     try {
       final data = jsonDecode(response.body);
-      if (data is Map && data['detail'] != null) {
-        return data['detail'].toString();
-      }
+      if (data is Map && data['detail'] != null) return data['detail'].toString();
     } catch (_) {}
     return fallback;
   }
