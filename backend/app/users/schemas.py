@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+FREE_FIRE = "Free Fire"
 
 
 class UpdateUserProfileRequest(BaseModel):
@@ -16,7 +19,7 @@ class UpdateUserProfileRequest(BaseModel):
     state: Optional[str] = Field(None, max_length=100)
     city: Optional[str] = Field(None, max_length=100)
     photo_url: Optional[str] = Field(None, max_length=1000)
-    preferred_game: Optional[str] = Field(None, max_length=100)
+    preferred_game: Literal['Free Fire'] | None = None
     social_links: Optional[dict[str, str]] = None
     # The in-game UID may be set once during profile setup, but is immutable
     # after it has been saved. The service layer enforces that rule.
@@ -27,7 +30,6 @@ class UpdateUserProfileRequest(BaseModel):
 
 class UpdatePhotoRequest(BaseModel):
     photo_url: str = Field(..., min_length=1, max_length=1000)
-
     model_config = ConfigDict(extra="ignore")
 
 
@@ -43,7 +45,7 @@ class UserProfileResponse(BaseModel):
     state: Optional[str] = ""
     city: Optional[str] = ""
     photo_url: Optional[str] = None
-    preferred_game: Optional[str] = ""
+    preferred_game: Literal['Free Fire'] = FREE_FIRE
     social_links: dict[str, str] = {}
     in_game_uid: Optional[str] = None
     role: str
@@ -62,7 +64,7 @@ class UserPublicProfileResponse(BaseModel):
     country: Optional[str] = ""
     city: Optional[str] = ""
     photo_url: Optional[str] = None
-    preferred_game: Optional[str] = ""
+    preferred_game: Literal['Free Fire'] = FREE_FIRE
     created_at: datetime
 
 
