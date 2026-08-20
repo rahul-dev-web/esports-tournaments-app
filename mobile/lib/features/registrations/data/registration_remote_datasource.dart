@@ -18,8 +18,11 @@ class RegistrationRemoteDataSource {
       };
 
   Future<RegistrationModel> start({required String tournamentId, required String teamId}) async {
+    // Backend registration router is mounted at /api/registrations.
+    // The start-registration endpoint is:
+    // POST /api/registrations/tournaments/{tournamentId}/teams/{teamId}
     final response = await _client.post(
-      Uri.parse('$apiBaseUrl/tournaments/$tournamentId/teams/$teamId'),
+      Uri.parse('$apiBaseUrl/registrations/tournaments/$tournamentId/teams/$teamId'),
       headers: _headers,
     );
     return _decodeRegistration(response, 'Unable to start registration');
