@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, event, func, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
@@ -215,7 +216,10 @@ class Notification(Base):
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     notification_type: Mapped[str] = mapped_column(String(60), default="general", nullable=False, index=True)
-    data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    # Supabase migration defines this column as JSONB. Using SQLAlchemy JSON
+    # makes PostgreSQL bind the value as ::JSON, which is not the same type and
+    # can make the notification INSERT fail during tournament creation.
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, nullable=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
