@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../data/notification_models.dart';
 import '../data/notification_remote_datasource.dart';
+import 'notification_badge_provider.dart';
 
 final notificationDataSourceProvider = Provider<NotificationRemoteDataSource>(
   (ref) => NotificationRemoteDataSource(ref.read(apiClientProvider)),
@@ -24,17 +25,20 @@ class NotificationsController extends AsyncNotifier<List<NotificationItem>> {
   Future<void> refresh() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(_load);
+    ref.invalidate(unreadNotificationCountProvider);
   }
 
   Future<void> markRead(NotificationItem item) async {
     if (item.isRead) return;
     await ref.read(notificationDataSourceProvider).markRead(item.id);
     state = await AsyncValue.guard(_load);
+    ref.invalidate(unreadNotificationCountProvider);
   }
 
   Future<int> markAllRead() async {
     final updated = await ref.read(notificationDataSourceProvider).markAllRead();
     state = await AsyncValue.guard(_load);
+    ref.invalidate(unreadNotificationCountProvider);
     return updated;
   }
 }
@@ -218,36 +222,16 @@ class _NotificationCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!item.isRead)
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(left: 8, top: 6),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
             ],
           ),
         ),
       ),
     );
   }
-
-  static String _relativeTime(DateTime date) {
-    final delta = DateTime.now().difference(date.toLocal());
-    if (delta.inMinutes < 1) return 'Just now';
-    if (delta.inHours < 1) return '${delta.inMinutes}m ago';
-    if (delta.inDays < 1) return '${delta.inHours}h ago';
-    if (delta.inDays < 7) return '${delta.inDays}d ago';
-    return '${date.day}/${date.month}/${date.year}';
-  }
 }
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView({required this.unreadOnly});
-
   final bool unreadOnly;
 
   @override
@@ -257,27 +241,12 @@ class _EmptyView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                unreadOnly
-                    ? Icons.mark_email_read_outlined
-                    : Icons.notifications_none_rounded,
-                size: 54,
+              const Icon(
+                Icons.notifications_none_rounded,
+                size: 44,
               ),
               const SizedBox(height: 12),
-              Text(
-                unreadOnly ? 'No unread notifications' : 'No notifications yet',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                unreadOnly
-                    ? 'You are all caught up.'
-                    : 'Tournament and registration updates will appear here.',
-                textAlign: TextAlign.center,
-              ),
+              Text(unreadOnly ? 'No unread notifications' : 'No notifications yet'),
             ],
           ),
         ),
@@ -286,7 +255,6 @@ class _EmptyView extends StatelessWidget {
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});
-
   final String message;
   final VoidCallback onRetry;
 
@@ -297,18 +265,22 @@ class _ErrorView extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off_rounded, size: 48),
-              const SizedBox(height: 12),
-              const Text(
-                'Could not load notifications',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
+              const Icon(Icons.error_outline_rounded, size: 40),
+              const SizedBox(height: 10),
               Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),
             ],
           ),
         ),
       );
+}
+
+String _relativeTime(DateTime value) {
+  final difference = DateTime.now().difference(value.toLocal());
+  if (difference.inSeconds < 60) return 'Just now';
+  if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+  if (difference.inHours < 24) return '${difference.inHours}h ago';
+  if (difference.inDays < 7) return '${difference.inDays}d ago';
+  return '${value.day}/${value.month}/${value.year}';
 }
