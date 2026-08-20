@@ -2,9 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/auth_providers.dart';
 import '../../data/datasources/team_remote_datasource.dart';
 
-final teamDataSourceProvider = Provider<TeamRemoteDataSource>((ref) {
-  return TeamRemoteDataSource();
-});
+final teamDataSourceProvider = Provider<TeamRemoteDataSource>((ref) => TeamRemoteDataSource());
 
 final teamsProvider = FutureProvider.family<List<Map<String, dynamic>>, String?>((ref, game) async {
   final dataSource = ref.watch(teamDataSourceProvider);
@@ -12,13 +10,11 @@ final teamsProvider = FutureProvider.family<List<Map<String, dynamic>>, String?>
 });
 
 final teamDetailsProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, teamId) async {
-  final dataSource = ref.watch(teamDataSourceProvider);
-  return dataSource.getTeamDetails(teamId);
+  return ref.watch(teamDataSourceProvider).getTeamDetails(teamId);
 });
 
 final teamMembersProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, teamId) async {
-  final dataSource = ref.watch(teamDataSourceProvider);
-  return dataSource.getTeamMembers(teamId);
+  return ref.watch(teamDataSourceProvider).getTeamMembers(teamId);
 });
 
 final myTeamsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
@@ -36,7 +32,6 @@ final createTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<Strin
   final result = await dataSource.createTeam(
     token,
     name: params['name'] as String,
-    game: params['game'] as String,
     isPrivate: params['is_private'] as bool? ?? false,
     logoUrl: params['logo_url'] as String?,
   );
@@ -55,7 +50,6 @@ final updateTeamProvider = FutureProvider.family<Map<String, dynamic>, Map<Strin
     token,
     params['team_id'] as String,
     name: params['name'] as String,
-    game: params['game'] as String,
     isPrivate: params['is_private'] as bool? ?? false,
     logoUrl: params['logo_url'] as String?,
   );
@@ -70,7 +64,6 @@ final deleteTeamProvider = FutureProvider.family<void, String>((ref, teamId) asy
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
   if (token == null) throw Exception('Not authenticated');
-
   await dataSource.deleteTeam(token, teamId);
   ref.invalidate(myTeamsProvider);
   ref.invalidate(teamsProvider);
@@ -82,7 +75,6 @@ final joinTeamProvider = FutureProvider.family<Map<String, dynamic>, String>((re
   final token = ref.watch(currentAccessTokenProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (token == null || userId == null) throw Exception('Not authenticated');
-
   final result = await dataSource.joinTeam(token, teamId, userId);
   ref.invalidate(myTeamsProvider);
   ref.invalidate(teamMembersProvider(teamId));
@@ -109,7 +101,6 @@ final acceptInvitationProvider = FutureProvider.family<void, String>((ref, invit
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
   if (token == null) throw Exception('Not authenticated');
-
   await dataSource.acceptInvitation(token, invitationId);
   ref.invalidate(receivedInvitationsProvider);
   ref.invalidate(myTeamsProvider);
@@ -120,7 +111,6 @@ final rejectInvitationProvider = FutureProvider.family<void, String>((ref, invit
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
   if (token == null) throw Exception('Not authenticated');
-
   await dataSource.rejectInvitation(token, invitationId);
   ref.invalidate(receivedInvitationsProvider);
 });
@@ -129,14 +119,12 @@ final sendInvitationProvider = FutureProvider.family<Map<String, dynamic>, Map<S
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
   if (token == null) throw Exception('Not authenticated');
-
   final result = await dataSource.sendInvitation(
     token,
     params['team_id'] as String,
     receiverId: params['receiver_id'] as String,
     message: params['message'] as String?,
   );
-
   ref.invalidate(teamInvitationsProvider(params['team_id'] as String));
   return result;
 });
@@ -145,12 +133,7 @@ final removeMemberProvider = FutureProvider.family<void, Map<String, String>>((r
   final dataSource = ref.watch(teamDataSourceProvider);
   final token = ref.watch(currentAccessTokenProvider);
   if (token == null) throw Exception('Not authenticated');
-
-  await dataSource.removeMember(
-    token,
-    params['team_id']!,
-    params['member_user_id']!,
-  );
+  await dataSource.removeMember(token, params['team_id']!, params['member_user_id']!);
   ref.invalidate(teamMembersProvider(params['team_id']!));
   ref.invalidate(teamDetailsProvider(params['team_id']!));
   ref.invalidate(myTeamsProvider);
