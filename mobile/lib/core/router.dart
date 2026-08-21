@@ -29,20 +29,27 @@ final appRouter = GoRouter(
     if (session != null && isLogin) return '/';
     return null;
   },
-  refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+  refreshListenable: GoRouterRefreshStream(
+    Supabase.instance.client.auth.onAuthStateChange,
+  ),
   routes: [
     GoRoute(path: '/splash', builder: (_, __) => const SplashPage()),
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
-    GoRoute(path: '/', builder: (_, __) => const HomePage()),
     ShellRoute(
       builder: (_, __, child) => AppShell(child: child),
       routes: [
+        GoRoute(path: '/', builder: (_, __) => const HomePage()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         GoRoute(path: '/profile/setup', builder: (_, __) => const ProfileSetupPage()),
         GoRoute(path: '/teams', builder: (_, __) => const TeamsListScreen()),
         GoRoute(path: '/teams/invitations', builder: (_, __) => const TeamInvitationsScreen()),
         GoRoute(path: '/tournaments', builder: (_, __) => const TournamentsPage()),
-        GoRoute(path: '/tournaments/:id', builder: (_, state) => TournamentDetailsPage(tournamentId: state.pathParameters['id']!)),
+        GoRoute(
+          path: '/tournaments/:id',
+          builder: (_, state) => TournamentDetailsPage(
+            tournamentId: state.pathParameters['id']!,
+          ),
+        ),
         GoRoute(path: '/registrations', builder: (_, __) => const RegistrationsPage()),
         GoRoute(path: '/notifications', builder: (_, __) => const NotificationsPage()),
       ],
@@ -53,7 +60,9 @@ final appRouter = GoRouter(
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     _subscription = stream.asBroadcastStream().listen((authState) {
-      debugPrint('[APP ROUTER EVENT] ${authState.event} session=${authState.session != null}');
+      debugPrint(
+        '[APP ROUTER EVENT] ${authState.event} session=${authState.session != null}',
+      );
       notifyListeners();
     });
   }
