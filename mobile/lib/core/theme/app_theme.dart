@@ -26,11 +26,42 @@ class ArenaTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       fontFamily: 'Roboto',
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: const Color(0xFF0B1020).withOpacity(.96),
+        surfaceTintColor: Colors.transparent,
+        elevation: 12,
+        height: 72,
+        indicatorColor: primary.withOpacity(.20),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            color: selected ? Colors.white : Colors.white54,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            size: 23,
+            color: selected ? Colors.white : Colors.white54,
+          );
+        }),
       ),
       cardTheme: CardThemeData(
         color: surface,
@@ -38,7 +69,7 @@ class ArenaTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: Colors.white10),
+          side: const BorderSide(color: Colors.white10),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -50,7 +81,7 @@ class ArenaTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white10),
+          borderSide: const BorderSide(color: Colors.white10),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
