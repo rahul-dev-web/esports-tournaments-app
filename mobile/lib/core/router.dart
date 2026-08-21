@@ -25,7 +25,6 @@ final appRouter = GoRouter(
     final location = state.matchedLocation;
     final isLogin = location == '/login';
     final isSplash = location == '/splash';
-
     if (session == null && !isLogin && !isSplash) return '/login';
     if (session != null && isLogin) return '/';
     return null;
@@ -34,10 +33,10 @@ final appRouter = GoRouter(
   routes: [
     GoRoute(path: '/splash', builder: (_, __) => const SplashPage()),
     GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+    GoRoute(path: '/', builder: (_, __) => const HomePage()),
     ShellRoute(
       builder: (_, __, child) => AppShell(child: child),
       routes: [
-        GoRoute(path: '/', builder: (_, __) => const HomePage()),
         GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         GoRoute(path: '/profile/setup', builder: (_, __) => const ProfileSetupPage()),
         GoRoute(path: '/teams', builder: (_, __) => const TeamsListScreen()),
